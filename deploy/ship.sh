@@ -56,7 +56,24 @@ SPACE_ID="${OCTO_SPACE_ID:-}"
 if [ -z "$SPACE_ID" ] && [ -f "$HOME/zylos/.env" ]; then
   SPACE_ID="$(grep -E '^OCTO_SPACE_ID=' "$HOME/zylos/.env" | head -1 | cut -d= -f2-)"
 fi
-BOT_ALLOWLIST="${YOYOO_BOT_ALLOWLIST:-xiaoa_bot}"
+# 🔴 09-03 真撞过一次：小A 的 bot 账号被删过、用邀请函重新兑换后 robot_id 变了
+#    （旧号 xiaoa_bot → 新号），而这里以前是硬编码旧号当默认值，导致发布"成功"
+#    但线上 /apps/for 全部 403 bot not allowed——发布脚本自己的冒烟只测未登录 401，
+#    测不出"白名单里的号是错的"这种错。现在改成：没显式传 YOYOO_BOT_ALLOWLIST 时，
+#    现查 `.env` 里那把 token 对应的**当前真实 robot_id**，而不是记一个写死的旧值。
+BOT_ALLOWLIST="${YOYOO_BOT_ALLOWLIST:-}"
+if [ -z "$BOT_ALLOWLIST" ] && [ -f "$HOME/zylos/.env" ]; then
+  BOT_TOKEN_FOR_LOOKUP="$(grep -E '^OCTO_BOT_TOKEN=' "$HOME/zylos/.env" | head -1 | cut -d= -f2-)"
+  if [ -n "$BOT_TOKEN_FOR_LOOKUP" ] && [ -n "$PUBLIC_URL" ]; then
+    BOT_ALLOWLIST="$(curl -s -m 10 -X POST -H "authorization: Bearer $BOT_TOKEN_FOR_LOOKUP" \
+      "$PUBLIC_URL/v1/bot/register" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("robot_id",""))' 2>/dev/null)"
+  fi
+fi
+if [ -z "$BOT_ALLOWLIST" ]; then
+  echo "❌ 现查不到当前 bot 的 robot_id（.env 里的 OCTO_BOT_TOKEN 失效，或宿主连不上），拒绝用一个可能过期的默认值发布。" >&2
+  echo "   手动指定：YOYOO_BOT_ALLOWLIST=<robot_id> ./deploy/ship.sh" >&2
+  exit 1
+fi
 
 # 自签证书阶段（域名/正式证书还没到位时）冒烟要加 -k，否则每一项都栽在 TLS 校验上，
 # 看起来像"服务坏了"，其实是"证书还没换"。**只在显式打开时才放松校验。**
@@ -103,6 +120,15 @@ else
   bad "上传失败"; exit 1
 fi
 
+# 说明书跟 .mjs 一样摊平发到 /app/ 下（不带 docs/ 那层目录），容器里用 MANUAL_PATH
+# 指到这个摊平后的位置（见 index.mjs 里那条注释——本地和线上目录结构不一样，
+# 09-03 因为没摊平这个文件撞出过一次 /manual 500）。
+if scp -q -o StrictHostKeyChecking=no "$HERE/docs/AI-MANUAL.md" "$HOST:$REMOTE_DIR/app/AI-MANUAL.md"; then
+  ok "说明书已上传"
+else
+  bad "说明书上传失败"; exit 1
+fi
+
 step "3/6 备份线上库（改表之前）"
 # 市场那一批要给 apps 加两列、建四张表。ALTER/CREATE 都是幂等的，
 # 但"幂等"不等于"出事能回去"—— 库里有他真造的应用，动表之前先留一份。
@@ -132,6 +158,8 @@ APP_DEEP_LINK=$PUBLIC_URL/superapp?app={id}
 # 正式地址，不能是容器内主机名（octo-server:8090 那种对方根本连不上）。
 INVITE_API_BASE=$PUBLIC_URL/yoyoo/v1
 INVITE_HOST_API_URL=$PUBLIC_URL
+# 说明书文件跟 .mjs 一起摊平发在 /app/ 下，不是嵌套的 docs/ 子目录，见上面的说明。
+MANUAL_PATH=/app/AI-MANUAL.md
 EOF
 ok "app.env 已写（space=$SPACE_ID allow=$BOT_ALLOWLIST）"
 
@@ -158,10 +186,48 @@ step "6/6 线上冒烟（只读 + 否定用例，不造任何东西）"
 h=$(curl -s $CURL_K -m 10 "$PUBLIC_URL/yoyoo/v1/health")
 echo "$h" | grep -q '"ok":true' && ok "健康检查通过" || bad "健康检查失败：$h"
 
+# 🔴 09-03 真出过事：这个位置以前不存在——说明书 docs/ 没摊平发布，线上 500，
+#    但没有任何一条冒烟查它，发布"全绿"照样通过。现在补上。
+manual_code=$(curl -s $CURL_K -m 10 -o /dev/null -w '%{http_code}' "$PUBLIC_URL/yoyoo/v1/manual")
+[ "$manual_code" = "200" ] && ok "/manual → 200" || bad "/manual 返回 $manual_code（应为 200，检查 AI-MANUAL.md 是否摊平发布、MANUAL_PATH 是否配对）"
+
 code=$(curl -s $CURL_K -m 10 -o /dev/null -w '%{http_code}' -X POST \
   -H 'content-type: application/json' -d '{"owner_uid":"u_x","blueprint":{"type":"page","children":[{"type":"text","value":"x"}]}}' \
   "$PUBLIC_URL/yoyoo/v1/apps/for")
 [ "$code" = "401" ] && ok "/apps/for 无 token → 401" || bad "/apps/for 无 token 返回 $code（应为 401）"
+
+# 连接器（09-03 新增）：只验"门关着"，不在生产环境造真连接器（没有安全的公开外部
+# 目标可供验证代理调用，造了也只是一条测试脏数据，不像 apps/for 那样删得干净）。
+conn_code=$(curl -s $CURL_K -m 10 -o /dev/null -w '%{http_code}' -X POST \
+  -H 'content-type: application/json' -d '{"owner_uid":"u_x","name":"x","base_url":"https://example.com","auth_type":"none"}' \
+  "$PUBLIC_URL/yoyoo/v1/connectors/for")
+[ "$conn_code" = "401" ] && ok "/connectors/for 无 token → 401" || bad "/connectors/for 无 token 返回 $conn_code（应为 401）"
+
+# 🔴 09-03 真出过事：白名单里的 robot_id 是旧号，之前的冒烟只测"坏 token → 401"，
+#    从没真正用一把**当前有效**的 bot token 走一遍，所以"bot not allowed"这种
+#    配置错误从没被这一步拦下过。现在用现查到的 BOT_ALLOWLIST 对应的真 token
+#    （就是刚才现查用的那把）造一个、马上删掉，验的是"白名单配置真的对得上"。
+if [ -n "$BOT_TOKEN_FOR_LOOKUP" ]; then
+  real_owner="$(grep -E '^OCTO_OWNER_UID=' "$HOME/zylos/.env" | head -1 | cut -d= -f2-)"
+  if [ -n "$real_owner" ]; then
+    live=$(curl -s $CURL_K -m 10 -X POST \
+      -H "authorization: Bearer $BOT_TOKEN_FOR_LOOKUP" -H 'content-type: application/json' \
+      -d "{\"owner_uid\":\"$real_owner\",\"name\":\"[部署冒烟-可删]\",\"blueprint\":{\"type\":\"page\",\"children\":[{\"type\":\"text\",\"value\":\"ship.sh smoke\"}]}}" \
+      "$PUBLIC_URL/yoyoo/v1/apps/for")
+    live_id=$(echo "$live" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))' 2>/dev/null)
+    if [ -n "$live_id" ]; then
+      ok "白名单真的对得上：用当前 bot token 真造了一个应用（id=$live_id）"
+      curl -s $CURL_K -m 10 -X DELETE \
+        -H "authorization: Bearer $BOT_TOKEN_FOR_LOOKUP" \
+        "$PUBLIC_URL/yoyoo/v1/apps/for/$live_id?owner_uid=$real_owner" >/dev/null
+      echo "      （已删除，不留痕迹）"
+    else
+      bad "当前 bot token 造应用失败：$live（白名单/owner_uid 配置可能没对上，检查 YOYOO_BOT_ALLOWLIST）"
+    fi
+  else
+    echo "   ⚠️ .env 没有 OCTO_OWNER_UID，跳过这一条真实身份验证"
+  fi
+fi
 
 # 邀请：两个否定用例。都不造任何东西 —— 一条没登录，一条拿的是假票号。
 code=$(curl -s $CURL_K -m 10 -o /dev/null -w '%{http_code}' -X POST \

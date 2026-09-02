@@ -32,11 +32,18 @@ const SYSTEM_PROMPT = `你是一个界面生成器。用户描述一个需求，
 - card:    {"type":"card","title":"卡片标题","children":[...]}
 - button:  {"type":"button","label":"按钮文字"}
 - divider: {"type":"divider"}
+- script:  {"type":"script","code":"一段 JavaScript"} —— 只有当用户明确要求"接自己的外部系统/
+  数据"时才用这个，且必须已经知道一个真实存在的连接器 id（不知道就不要瞎编一个）。
+  代码跑在隔离沙盒里，用 Yoyoo.connectorCall(connectorId, {method,path,query,body})
+  （返回 Promise，resolve 出 {status,body}）去读写外部数据，用 document.getElementById("app")
+  拿到根节点自己画东西，不要假设有任何其它全局变量或框架。
 
 要求：
 1. 只输出 JSON，不要任何解释、不要 markdown 代码围栏。
 2. 内容要具体、像真的能用，不要写"示例1/示例2"这种占位。
-3. 语言跟随用户的提问语言。`;
+3. 语言跟随用户的提问语言。
+4. 普通展示类需求（列表/表格/看板这些）不要用 script——用受控组件更安全、更省事，
+   script 只留给"必须跑逻辑/接外部数据"这种受控组件做不到的场景。`;
 
 /** 把模型可能的花样（代码围栏、前后废话）剥掉，抠出第一个完整 JSON 对象 */
 export function extractJson(raw) {

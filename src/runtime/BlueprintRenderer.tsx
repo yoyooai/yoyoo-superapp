@@ -14,6 +14,7 @@
  * 现在这版只做最小集合，先把"AI 产 JSON → 落库 → 反复打开"这条管道跑通。
  */
 import React from "react";
+import ScriptSandbox, { type ConnectorCallRequest } from "./ScriptSandbox";
 
 export interface BlueprintNode {
   type?: string;
@@ -83,13 +84,19 @@ export interface RendererProps {
   node: unknown;
   /** 按钮等交互的回调；不传则按钮只是展示 */
   onAction?: (action: unknown, node: BlueprintNode) => void;
+  /**
+   * `script` 节点里的代码调连接器时真正发起请求的人。不传的话 script 节点
+   * 依然会渲染（沙盒本身不需要它），但里面的 `Yoyoo.connectorCall` 一律收到失败——
+   * 宁可"这个上下文没接后端"表现为脚本报错，也不该让沙盒去信任脚本自己声称的身份。
+   */
+  onConnectorCall?: (connectorId: string, req: ConnectorCallRequest) => Promise<unknown>;
   depth?: number;
 }
 
 /** 防御深度炸弹：AI 或恶意输入可能给一棵极深的树 */
 const MAX_DEPTH = 24;
 
-export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, depth = 0 }) => {
+export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, onConnectorCall, depth = 0 }) => {
   if (depth > MAX_DEPTH) {
     return <div style={S.unknown}>（嵌套过深，已停止渲染）</div>;
   }
@@ -103,7 +110,7 @@ export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, dep
     return (
       <>
         {node.map((child, i) => (
-          <BlueprintRenderer key={i} node={child} onAction={onAction} depth={depth + 1} />
+          <BlueprintRenderer key={i} node={child} onAction={onAction} onConnectorCall={onConnectorCall} depth={depth + 1} />
         ))}
       </>
     );
@@ -115,7 +122,7 @@ export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, dep
   const children = (
     <>
       {arr(n.children).map((child, i) => (
-        <BlueprintRenderer key={i} node={child} onAction={onAction} depth={depth + 1} />
+        <BlueprintRenderer key={i} node={child} onAction={onAction} onConnectorCall={onConnectorCall} depth={depth + 1} />
       ))}
     </>
   );
@@ -162,7 +169,7 @@ export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, dep
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.9 }}>
           {items.map((it, i) => (
             <li key={i}>{typeof it === "object" && it !== null
-              ? <BlueprintRenderer node={it} onAction={onAction} depth={depth + 1} />
+              ? <BlueprintRenderer node={it} onAction={onAction} onConnectorCall={onConnectorCall} depth={depth + 1} />
               : str(it)}</li>
           ))}
         </ul>
@@ -203,6 +210,16 @@ export const BlueprintRenderer: React.FC<RendererProps> = ({ node, onAction, dep
         >
           {str(n.label ?? n.text ?? "按钮")}
         </button>
+      );
+
+    case "script":
+      // 唯一真正执行代码的分支——细节全在 ScriptSandbox 里（隔离 iframe + 锁死出站网络）。
+      return (
+        <ScriptSandbox
+          code={str(n.code)}
+          title={typeof n.title === "string" ? n.title : undefined}
+          onConnectorCall={onConnectorCall}
+        />
       );
 
     default:

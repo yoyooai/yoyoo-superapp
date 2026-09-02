@@ -60,6 +60,9 @@ const InviteAIDialog: React.FC<InviteAIDialogProps> = ({ api, inviterName, onClo
         requireApproval,
         inviterName,
         note: note.trim() || undefined,
+        // 同一个输入框既是临时名也是备注：苏白填「小A」时想的就是"给它起个名字"，
+        // 把它当备注收着、再另挂一个占位名，就是又骗他一次。
+        placeholderName: note.trim() || undefined,
       }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -146,8 +149,9 @@ const InviteAIDialog: React.FC<InviteAIDialogProps> = ({ api, inviterName, onClo
                 </>
               ) : (
                 <>
-                  <b>号会在你点「生成邀请」的这一刻就建好</b> —— 它立刻出现在通讯录里、
-                  先用一个占位名，并会主动发一句话自报身份。
+                  <b>号会在你点「生成邀请」的这一刻就建好</b> —— 它立刻出现在通讯录里，
+                  先用你填的临时名；等它自己进来自报身份后，
+                  <b>名字会自动换成它报的那个</b>，你不用管。
                   <span style={{ display: "block", marginTop: 4 }}>
                     想要"先申请、你点头才进来"，勾上下面那个框。
                   </span>
@@ -155,9 +159,19 @@ const InviteAIDialog: React.FC<InviteAIDialogProps> = ({ api, inviterName, onClo
               )}
             </p>
 
+            {/*
+              🔴 这个框曾经叫「备注（给自己看的）」，但它长在"起名字"该在的位置上 ——
+                 苏白 2026-09-02 往里填了「小A」，以为是给它起名字，结果那个名字
+                 一个字都没用上，号顶着「受邀 AI · 待接受」进了通讯录。
+                 与其解释"这不是名字框"，不如让它真的是。现在它就是临时名。
+            */}
             <input
               style={{ ...c.input, flex: "none" }}
-              placeholder="备注（给自己看的，比如「邀请小X」）"
+              placeholder={
+                requireApproval
+                  ? "备注（给自己看的，比如「邀请小X」）"
+                  : "先给它起个临时名字（可留空，它进来后会自己改）"
+              }
               value={note}
               maxLength={60}
               onChange={(e) => setNote(e.target.value)}
@@ -174,14 +188,15 @@ const InviteAIDialog: React.FC<InviteAIDialogProps> = ({ api, inviterName, onClo
                 需要我审批
                 <span style={{ display: "block", opacity: 0.55, fontSize: 12, lineHeight: 1.7 }}>
                   {/*
-                    🔴 「它自报后再改」曾写在这里，是假的：改号名要用户那把 uk_ 钥匙，
-                       后端刻意不持有 ⇒ 改不了，这一环从来没实现（TD-299，真机验过）。
-                       别把没做的事写成会自动发生 —— 苏白就是照着这句话去找"接受"入口的。
+                    🔴 这句话的历史：初版写「它自报后再改」是假的（那一环没实现），
+                       改成「要改得你手动改」是当时的实话。**现在它真的会自动改了** ——
+                       前端在你打开界面时用你的登录态改（api/invite.ts `reconcileNames`）。
+                       改这句前先确认那个回填器还在跑，别让文案又一次跑到实现前面。
                   */}
                   {requireApproval
                     ? "对方拿票进来后先排队，你点头才成为联系人。名字用它自报的那个，一次就对。"
-                    : "不勾：对方拿票即进通讯录，并会主动发一句话自报身份。名字是占位名，"
-                      + "目前不会自动变成它自报的名字，要改得你手动改。"}
+                    : "不勾：对方拿票即进通讯录，并会主动发一句话自报身份。名字先用你填的临时名，"
+                      + "它自报之后自动换成它自己的名字。"}
                 </span>
               </span>
             </label>

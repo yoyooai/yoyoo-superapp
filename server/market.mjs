@@ -17,6 +17,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { normalizeForStore } from "./blueprint.mjs";
+import { normalizeCardForStore } from "./card-store.mjs";
 import { scanForSecrets } from "./secrets.mjs";
 import { send, readJson, clip } from "./http-util.mjs";
 
@@ -47,6 +48,7 @@ export function initMarketSchema(db) {
       space_id    TEXT NOT NULL,
       author_uid  TEXT NOT NULL,
       app_id      TEXT NOT NULL,
+      kind        TEXT NOT NULL DEFAULT 'app',
       name        TEXT NOT NULL,
       icon        TEXT,
       summary     TEXT NOT NULL,
@@ -96,6 +98,22 @@ export function initMarketSchema(db) {
   if (!cols.has("source_version")) {
     db.exec(`ALTER TABLE apps ADD COLUMN source_version INTEGER`);
   }
+
+  // 老库没有 kind 列时补上，一律回填 'app'——老数据全部是应用，这条回填不是猜测。
+  const listingCols = new Set(db.prepare(`PRAGMA table_info(listings)`).all().map((r) => r.name));
+  if (!listingCols.has("kind")) {
+    db.exec(`ALTER TABLE listings ADD COLUMN kind TEXT NOT NULL DEFAULT 'app'`);
+  }
+
+  // cards 表由 index.mjs 建（跟 apps 一样是"我们自己的账本"），这里只负责补市场需要的两列。
+  // 建表顺序有硬依赖：createMarket() 必须在 index.mjs 建完 cards 表之后调用，否则这里 ALTER 会报错。
+  const cardCols = new Set(db.prepare(`PRAGMA table_info(cards)`).all().map((r) => r.name));
+  if (!cardCols.has("source_listing_id")) {
+    db.exec(`ALTER TABLE cards ADD COLUMN source_listing_id TEXT`);
+  }
+  if (!cardCols.has("source_version")) {
+    db.exec(`ALTER TABLE cards ADD COLUMN source_version INTEGER`);
+  }
 }
 
 /**
@@ -120,13 +138,13 @@ const BROWSE_ORDER = {
 function browseSql({ sort, mine }) {
   const order = BROWSE_ORDER[sort] || BROWSE_ORDER.new;
   return `
-      SELECT l.id, l.author_uid, l.name, l.icon, l.summary, l.created_by,
+      SELECT l.id, l.author_uid, l.name, l.icon, l.summary, l.created_by, l.kind,
              l.version, l.created_at, l.updated_at,
              (SELECT COUNT(*) FROM installs i WHERE i.listing_id = l.id) AS installs,
              (SELECT i.app_id  FROM installs i WHERE i.listing_id = l.id AND i.uid = ?) AS my_app_id,
              (SELECT i.version FROM installs i WHERE i.listing_id = l.id AND i.uid = ?) AS my_version
         FROM listings l
-       WHERE l.space_id = ? AND l.status = 'listed'
+       WHERE l.space_id = ? AND l.status = 'listed' AND l.kind = ?
          AND (? = '' OR l.name LIKE ? OR l.summary LIKE ?)
          ${mine ? "AND l.author_uid = ?" : ""}
        ORDER BY ${order}
@@ -156,9 +174,9 @@ export function createMarket({ db, spaceId }) {
       `SELECT blueprint FROM listing_versions WHERE listing_id = ? AND version = ?`),
     insertListing: db.prepare(`
       INSERT INTO listings
-        (id, space_id, author_uid, app_id, name, icon, summary, created_by,
+        (id, space_id, author_uid, app_id, kind, name, icon, summary, created_by,
          version, status, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,'listed',?,?)`),
+      VALUES (?,?,?,?,?,?,?,?,?,?,'listed',?,?)`),
     insertVersion: db.prepare(`
       INSERT INTO listing_versions (listing_id, version, blueprint, note, created_at)
       VALUES (?,?,?,?,?)`),
@@ -166,7 +184,7 @@ export function createMarket({ db, spaceId }) {
       `UPDATE listings SET version=?, name=?, icon=?, updated_at=? WHERE id=?`),
     delist: db.prepare(`UPDATE listings SET status='delisted', updated_at=? WHERE id=?`),
     listingByAppAndAuthor: db.prepare(
-      `SELECT * FROM listings WHERE app_id = ? AND author_uid = ?`),
+      `SELECT * FROM listings WHERE app_id = ? AND author_uid = ? AND kind = ?`),
     installCount: db.prepare(`SELECT COUNT(*) AS n FROM installs WHERE listing_id = ?`),
     myInstall: db.prepare(`SELECT * FROM installs WHERE listing_id = ? AND uid = ?`),
     insertInstall: db.prepare(`
@@ -183,6 +201,16 @@ export function createMarket({ db, spaceId }) {
     appSetBlueprint: db.prepare(`
       UPDATE apps SET blueprint=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=?`),
     appOwned: db.prepare(`SELECT id FROM apps WHERE id = ? AND owner_uid = ?`),
+
+    // cards 侧 —— 结构跟 apps 侧一一对应，字段名换成 card（不是 blueprint）
+    cardGet: db.prepare(`SELECT * FROM cards WHERE id = ? AND owner_uid = ?`),
+    cardInsertFromMarket: db.prepare(`
+      INSERT INTO cards (id, owner_uid, name, icon, card, created_by,
+                        created_at, updated_at, source_listing_id, source_version)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`),
+    cardSetCard: db.prepare(`
+      UPDATE cards SET card=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=?`),
+    cardOwned: db.prepare(`SELECT id FROM cards WHERE id = ? AND owner_uid = ?`),
 
     backupPut: db.prepare(`
       INSERT INTO app_backups (app_id, blueprint, from_version, created_at)
@@ -238,16 +266,165 @@ export function createMarket({ db, spaceId }) {
     return row;
   }
 
-  /** 把作者当前应用照一张快照（入库前仍过收敛器 —— §5.1，判据只有一份） */
-  function snapshot(appRow) {
-    const norm = normalizeForStore(JSON.parse(appRow.blueprint));
-    if (!norm.ok) return { ok: false, error: `蓝图不合法：${norm.error}` };
-    return { ok: true, blueprint: norm.blueprint };
+  /**
+   * 两种内容类型的存取表 —— 应用和卡片共用下面这一整套发布/浏览/安装逻辑，
+   * 区别只在"去哪张表取/存"和"用哪个收敛器校验"，本文件只维护这一份判据。
+   */
+  const STORES = {
+    app: {
+      contentField: "blueprint",
+      get: (id, uid) => q.appGet.get(id, uid),
+      normalize: (raw) => normalizeForStore(raw),
+      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion) =>
+        q.appInsertFromMarket.run(id, uid, name, icon, contentJson, createdBy, now, now, sourceListingId, sourceVersion),
+      setContent: (contentJson, version, now, id, uid) =>
+        q.appSetBlueprint.run(contentJson, version, now, id, uid),
+    },
+    card: {
+      contentField: "card",
+      get: (id, uid) => q.cardGet.get(id, uid),
+      normalize: (raw) => normalizeCardForStore(raw),
+      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion) =>
+        q.cardInsertFromMarket.run(id, uid, name, icon, contentJson, createdBy, now, now, sourceListingId, sourceVersion),
+      setContent: (contentJson, version, now, id, uid) =>
+        q.cardSetCard.run(contentJson, version, now, id, uid),
+    },
+  };
+
+  function storeFor(kind) {
+    return STORES[kind] || null;
+  }
+
+  /** 把作者当前内容（应用/卡片）照一张快照（入库前仍过收敛器 —— §5.1，判据只有一份） */
+  function snapshot(kind, row) {
+    const store = storeFor(kind);
+    const raw = JSON.parse(row[store.contentField]);
+    const norm = store.normalize(raw);
+    if (!norm.ok) return { ok: false, error: `内容不合法：${norm.error}` };
+    return { ok: true, content: norm.blueprint ?? norm.card };
+  }
+
+  /**
+   * 下面这四个函数是「市场」的核心判据，返回纯 `{status, body}`，不碰 req/res —— 用户面
+   * 的 `handle()`（走 HTTP 解析）和 bot 面（index.mjs 里 AI 代表某人操作）**共用同一份**，
+   * 不允许各自抄一遍再各自改坏一处。kind 是 'app' 或 'card'，不认识的 kind 一律当参数错误。
+   */
+
+  function doBrowse(kind, uid, { q: rawQIn, page: pageIn, hot, mine }) {
+    if (!storeFor(kind)) return { status: 400, body: { error: `unknown kind: ${kind}` } };
+    const raw = clip(rawQIn || "", 80).trim();
+    const like = `%${raw.replace(/[%_]/g, (m) => `\\${m}`)}%`;
+    const page = Math.max(0, Number(pageIn || 0) | 0);
+    const size = 30;
+    const stmt = mine
+      ? (hot ? q.browseMineHot : q.browseMine)
+      : (hot ? q.browseHot : q.browse);
+    const args = mine
+      ? [uid, uid, spaceId, kind, raw, like, like, uid, size, page * size]
+      : [uid, uid, spaceId, kind, raw, like, like, size, page * size];
+    const rows = stmt.all(...args).map((r) => ({
+      ...r,
+      installed: r.my_app_id != null,
+      update_available: r.my_app_id != null && r.version > r.my_version,
+      is_author: r.author_uid === uid,
+    }));
+    return { status: 200, body: { listings: rows, page, page_size: size, sort: hot ? "hot" : "new", mine } };
+  }
+
+  function doPublishNew(kind, uid, { appId, summary, note, confirmSensitive }, now) {
+    const store = storeFor(kind);
+    if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
+    const id64 = clip(appId, 64);
+    const sum = clip(summary, 140).trim();
+    if (!id64) return { status: 400, body: { error: "app_id required" } };
+    if (!sum) return { status: 400, body: { error: "summary required" } };
+
+    const contentRow = store.get(id64, uid);
+    if (!contentRow) return { status: 404, body: { error: "not found" } };
+
+    const already = q.listingByAppAndAuthor.get(id64, uid, kind);
+    if (already && already.status === "listed") {
+      return { status: 409, body: { error: "这个已经上架了，要更新请发新版本", listing_id: already.id } };
+    }
+    if (rateExceeded(uid, now)) {
+      return { status: 429, body: { error: "发布太频繁，稍等一分钟" } };
+    }
+
+    const snap = snapshot(kind, contentRow);
+    if (!snap.ok) return { status: 400, body: { error: snap.error } };
+
+    const scan = scanForSecrets({ blueprint: snap.content, summary: sum, name: contentRow.name });
+    if (!scan.clean && confirmSensitive !== true) {
+      return {
+        status: 409,
+        body: { error: "sensitive_content", message: "这里面像是有不该公开的内容，确认后才发布", hits: scan.hits },
+      };
+    }
+
+    const id = randomUUID();
+    q.insertListing.run(
+      id, spaceId, uid, id64, kind, contentRow.name, contentRow.icon, sum,
+      contentRow.created_by === "ai" ? "ai" : "human", 1, now, now);
+    q.insertVersion.run(id, 1, JSON.stringify(snap.content), clip(note, 200) || null, now);
+    ratePunch(uid, now);
+    console.log(`[yoyoo-market] publish kind=${kind} listing=${id} content=${id64} author=${uid}`);
+    return { status: 201, body: { id, version: 1, status: "listed" } };
+  }
+
+  function doPublishVersion(kind, uid, { listingId, note, confirmSensitive }, now) {
+    const store = storeFor(kind);
+    if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
+    const row = visibleListing(listingId);
+    if (!row || row.kind !== kind) return { status: 404, body: { error: "not found" } };
+    if (row.author_uid !== uid) return { status: 403, body: { error: "只有作者能发新版" } };
+    if (rateExceeded(uid, now)) return { status: 429, body: { error: "发布太频繁，稍等一分钟" } };
+
+    const contentRow = store.get(row.app_id, uid);
+    if (!contentRow) return { status: 404, body: { error: "原始内容已不在，无法发新版" } };
+    const snap = snapshot(kind, contentRow);
+    if (!snap.ok) return { status: 400, body: { error: snap.error } };
+    const scan = scanForSecrets({ blueprint: snap.content, name: contentRow.name });
+    if (!scan.clean && confirmSensitive !== true) {
+      return {
+        status: 409,
+        body: { error: "sensitive_content", message: "这一版里像是有不该公开的内容，确认后才发布", hits: scan.hits },
+      };
+    }
+    const next = row.version + 1;
+    q.insertVersion.run(listingId, next, JSON.stringify(snap.content), clip(note, 200) || null, now);
+    q.bumpVersion.run(next, contentRow.name, contentRow.icon, now, listingId);
+    ratePunch(uid, now);
+    console.log(`[yoyoo-market] new version kind=${kind} listing=${listingId} v${next}`);
+    return { status: 201, body: { id: listingId, version: next } };
+  }
+
+  function doInstall(kind, uid, listingId, now) {
+    const store = storeFor(kind);
+    if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
+    const row = visibleListing(listingId);
+    if (!row || row.kind !== kind) return { status: 404, body: { error: "not found" } };
+
+    const mine = q.myInstall.get(listingId, uid);
+    if (mine) return { status: 200, body: { app_id: mine.app_id, version: mine.version, already: true } };
+
+    const v = q.versionBlueprint.get(listingId, row.version);
+    if (!v) return { status: 500, body: { error: "快照缺失" } };
+    const norm = store.normalize(JSON.parse(v.blueprint));
+    if (!norm.ok) return { status: 500, body: { error: "快照不合法" } };
+    const content = norm.blueprint ?? norm.card;
+
+    const newId = randomUUID();
+    store.insertFromMarket(newId, uid, row.name, row.icon, JSON.stringify(content), row.created_by, now, listingId, row.version);
+    q.insertInstall.run(listingId, uid, newId, row.version, now);
+    console.log(`[yoyoo-market] install kind=${kind} listing=${listingId} uid=${uid} content=${newId}`);
+    return { status: 201, body: { app_id: newId, version: row.version, installs: q.installCount.get(listingId).n } };
   }
 
   /**
    * 路由。命中返回 true，未命中返回 false（让 index.mjs 继续走它自己的分支）。
    * 进来时 uid 已经过鉴权 —— 市场所有接口都要求登录（§6 否定用例：未登录 401）。
+   * 用户面目前只暴露应用市场（kind 固定 'app'）——卡片市场的界面还没做，
+   * 接口已经通用，等前端做的时候不需要再改后端。
    */
   async function handle(req, res, { path, url, uid, now, root }) {
     const rel = path.slice(root.length); // 形如 /market/listings/xxx
@@ -283,33 +460,15 @@ export function createMarket({ db, spaceId }) {
       return send(res, 405, { error: "method not allowed" }), true;
     }
 
-    // ── 市场 ────────────────────────────────────────────────────
+    // ── 市场（用户面目前只服务 kind='app'；接口本身两种 kind 都通）───────
     if (rel === "/market/listings") {
       if (req.method === "GET") {
-        const raw = clip(url.searchParams.get("q") || "", 80).trim();
-        const like = `%${raw.replace(/[%_]/g, (m) => `\\${m}`)}%`;
-        const page = Math.max(0, Number(url.searchParams.get("page") || 0) | 0);
-        const size = 30;
-        // 排序与「只看我发的」都只当 key 用：非法值一律落回默认，不进 SQL
         const hot = url.searchParams.get("sort") === "hot";
         const mine = url.searchParams.get("mine") === "1";
-        const stmt = mine
-          ? (hot ? q.browseMineHot : q.browseMine)
-          : (hot ? q.browseHot : q.browse);
-        const args = mine
-          ? [uid, uid, spaceId, raw, like, like, uid, size, page * size]
-          : [uid, uid, spaceId, raw, like, like, size, page * size];
-        const rows = stmt.all(...args).map((r) => ({
-          ...r,
-          installed: r.my_app_id != null,
-          update_available: r.my_app_id != null && r.version > r.my_version,
-          // 谁发的：界面上「我的发布」要据此给出发新版/下架，别人的不给
-          is_author: r.author_uid === uid,
-        }));
-        return send(res, 200, {
-          listings: rows, page, page_size: size,
-          sort: hot ? "hot" : "new", mine,
-        }), true;
+        const r = doBrowse("app", uid, {
+          q: url.searchParams.get("q"), page: url.searchParams.get("page"), hot, mine,
+        });
+        return send(res, r.status, r.body), true;
       }
       if (req.method === "POST") {
         let body;
@@ -318,46 +477,11 @@ export function createMarket({ db, spaceId }) {
         } catch (e) {
           return send(res, 400, { error: String(e.message || e) }), true;
         }
-        const appId = clip(body.app_id, 64);
-        const summary = clip(body.summary, 140).trim();
-        if (!appId) return send(res, 400, { error: "app_id required" }), true;
-        if (!summary) return send(res, 400, { error: "summary required" }), true;
-
-        const app = q.appGet.get(appId, uid);
-        if (!app) return send(res, 404, { error: "not found" }), true;
-
-        const already = q.listingByAppAndAuthor.get(appId, uid);
-        if (already && already.status === "listed") {
-          return send(res, 409, {
-            error: "这个应用已经上架了，要更新请发新版本",
-            listing_id: already.id,
-          }), true;
-        }
-        if (rateExceeded(uid, now)) {
-          return send(res, 429, { error: "发布太频繁，稍等一分钟" }), true;
-        }
-
-        const snap = snapshot(app);
-        if (!snap.ok) return send(res, 400, { error: snap.error }), true;
-
-        // 🔴 不可逆动作的门：命中私货就拦下并如实告知，不静默发布、不静默删改
-        const scan = scanForSecrets({ blueprint: snap.blueprint, summary, name: app.name });
-        if (!scan.clean && body.confirm_sensitive !== true) {
-          return send(res, 409, {
-            error: "sensitive_content",
-            message: "这个应用里像是有不该公开的内容，确认后才发布",
-            hits: scan.hits,
-          }), true;
-        }
-
-        const id = randomUUID();
-        q.insertListing.run(
-          id, spaceId, uid, appId, app.name, app.icon, summary,
-          app.created_by === "ai" ? "ai" : "human", 1, now, now);
-        q.insertVersion.run(id, 1, JSON.stringify(snap.blueprint), clip(body.note, 200) || null, now);
-        ratePunch(uid, now);
-        console.log(`[yoyoo-market] publish listing=${id} app=${appId} author=${uid}`);
-        return send(res, 201, { id, version: 1, status: "listed" }), true;
+        const r = doPublishNew("app", uid, {
+          appId: body.app_id, summary: body.summary, note: body.note,
+          confirmSensitive: body.confirm_sensitive === true,
+        }, now);
+        return send(res, r.status, r.body), true;
       }
       return send(res, 405, { error: "method not allowed" }), true;
     }
@@ -370,67 +494,23 @@ export function createMarket({ db, spaceId }) {
       // 发新版
       if (action === "versions") {
         if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
-        const row = visibleListing(listingId);
-        if (!row) return send(res, 404, { error: "not found" }), true;
-        if (row.author_uid !== uid) return send(res, 403, { error: "只有作者能发新版" }), true;
         let body;
         try {
           body = await readJson(req);
         } catch (e) {
           return send(res, 400, { error: String(e.message || e) }), true;
         }
-        if (rateExceeded(uid, now)) {
-          return send(res, 429, { error: "发布太频繁，稍等一分钟" }), true;
-        }
-        const app = q.appGet.get(row.app_id, uid);
-        if (!app) return send(res, 404, { error: "原始应用已不在，无法发新版" }), true;
-        const snap = snapshot(app);
-        if (!snap.ok) return send(res, 400, { error: snap.error }), true;
-        const scan = scanForSecrets({ blueprint: snap.blueprint, name: app.name });
-        if (!scan.clean && body.confirm_sensitive !== true) {
-          return send(res, 409, {
-            error: "sensitive_content",
-            message: "这一版里像是有不该公开的内容，确认后才发布",
-            hits: scan.hits,
-          }), true;
-        }
-        const next = row.version + 1;
-        q.insertVersion.run(listingId, next, JSON.stringify(snap.blueprint), clip(body.note, 200) || null, now);
-        q.bumpVersion.run(next, app.name, app.icon, now, listingId);
-        ratePunch(uid, now);
-        console.log(`[yoyoo-market] new version listing=${listingId} v${next}`);
-        return send(res, 201, { id: listingId, version: next }), true;
+        const r = doPublishVersion("app", uid, {
+          listingId, note: body.note, confirmSensitive: body.confirm_sensitive === true,
+        }, now);
+        return send(res, r.status, r.body), true;
       }
 
       // 安装
       if (action === "install") {
         if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
-        const row = visibleListing(listingId);
-        if (!row) return send(res, 404, { error: "not found" }), true;
-
-        // 幂等：装过就返回已有那条，不产生第二份（§5.8）
-        const mine = q.myInstall.get(listingId, uid);
-        if (mine) {
-          return send(res, 200, { app_id: mine.app_id, version: mine.version, already: true }), true;
-        }
-
-        const v = q.versionBlueprint.get(listingId, row.version);
-        if (!v) return send(res, 500, { error: "快照缺失" }), true;
-        // 快照入库前再过一次收敛器 —— 判据只有一份，路径多一条也不例外
-        const norm = normalizeForStore(JSON.parse(v.blueprint));
-        if (!norm.ok) return send(res, 500, { error: "快照不合法" }), true;
-
-        const newAppId = randomUUID();
-        q.appInsertFromMarket.run(
-          newAppId, uid, row.name, row.icon, JSON.stringify(norm.blueprint),
-          row.created_by, now, now, listingId, row.version);
-        q.insertInstall.run(listingId, uid, newAppId, row.version, now);
-        console.log(`[yoyoo-market] install listing=${listingId} uid=${uid} app=${newAppId}`);
-        return send(res, 201, {
-          app_id: newAppId,
-          version: row.version,
-          installs: q.installCount.get(listingId).n,
-        }), true;
+        const r = doInstall("app", uid, listingId, now);
+        return send(res, r.status, r.body), true;
       }
 
       if (action) return send(res, 404, { error: "not found" }), true;
@@ -558,5 +638,10 @@ export function createMarket({ db, spaceId }) {
     });
   }
 
-  return { handle, handleAppAction, decorateAppList, onAppDeleted, PIN_LIMIT };
+  return {
+    handle, handleAppAction, decorateAppList, onAppDeleted, PIN_LIMIT,
+    // bot 面（index.mjs 的 /apps/for、/cards/for 系列）直接调这几个，绕开 HTTP 解析，
+    // 但走的是同一份判据——不是给 bot 面另开一条后门逻辑。
+    doBrowse, doPublishNew, doPublishVersion, doInstall,
+  };
 }

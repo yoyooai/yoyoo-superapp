@@ -270,3 +270,102 @@ test("有效期上限收口（30 天），默认值是 7 天", async () => {
   const days = Math.round((r.body.expires_at - Date.now()) / 86_400_000);
   assert.equal(days, 30);
 });
+
+// ── ⑤ 名字回填（苏白 2026-09-02：默认直接进来，但名字得是它自己报的）────────
+
+test("兑换后 claim_name 落库，且 name_applied_at 仍为空（＝欠着一次回填）", async () => {
+  const h = harness();
+  const iss = await issueDirect(h);
+  const r = await h.pub("/invites/redeem", { code: iss.body.code, name: "小蓝" });
+  assert.equal(r.code, 200);
+
+  const [row] = h.rows();
+  assert.equal(row.claim_name, "小蓝");
+  assert.equal(row.status, "accepted");
+  assert.equal(row.name_applied_at, null,
+    "刚兑换就标成「已回填」，前端就永远不会去改名了 —— 这条改坏必须报红");
+
+  // 列表要把这个欠账透出去，否则前端根本看不见有活要干。
+  const list = await h.user("GET", "/invites");
+  assert.equal(list.body.invites[0].name_applied_at, null);
+  assert.equal(list.body.invites[0].claim_name, "小蓝");
+  assert.equal(list.body.invites[0].bot_uid, "guest_bot");
+});
+
+test("回执打上后 name_applied_at 有值，前端下一轮就不会重复改名", async () => {
+  const h = harness();
+  const iss = await issueDirect(h);
+  await h.pub("/invites/redeem", { code: iss.body.code, name: "小蓝" });
+
+  const r = await h.user("POST", `/invites/${iss.body.id}/name-applied`, {});
+  assert.equal(r.code, 200);
+  assert.ok(r.body.name_applied_at > 0);
+
+  const list = await h.user("GET", "/invites");
+  assert.ok(list.body.invites[0].name_applied_at > 0);
+});
+
+test("回执是幂等的（回执丢包时前端会重打，不能报错）", async () => {
+  const h = harness();
+  const iss = await issueDirect(h);
+  await h.pub("/invites/redeem", { code: iss.body.code, name: "小蓝" });
+  assert.equal((await h.user("POST", `/invites/${iss.body.id}/name-applied`, {})).code, 200);
+  assert.equal((await h.user("POST", `/invites/${iss.body.id}/name-applied`, {})).code, 200);
+});
+
+test("没号可改时拒绝回执（还没兑换的票不该被标成已回填）", async () => {
+  const h = harness();
+  const iss = await issueDirect(h);
+  const r = await h.user("POST", `/invites/${iss.body.id}/name-applied`, {});
+  assert.equal(r.code, 409);
+  assert.equal(h.rows()[0].name_applied_at, null);
+});
+
+test("🔴 后端不碰宿主：回执只记时刻，不产生任何改名能力", async () => {
+  const h = harness();
+  const iss = await issueDirect(h);
+  await h.pub("/invites/redeem", { code: iss.body.code, name: "小蓝" });
+  const before = h.rows()[0];
+  await h.user("POST", `/invites/${iss.body.id}/name-applied`, {});
+  const after = h.rows()[0];
+  // 除了 name_applied_at / updated_at，其它列一个都不许动 —— 尤其不许冒出
+  // 任何形似用户钥匙的东西（后端持有 uk_ 是这套设计最不该有的东西）。
+  for (const k of Object.keys(before)) {
+    if (k === "name_applied_at" || k === "updated_at") continue;
+    assert.deepEqual(after[k], before[k], `回执动了不该动的列：${k}`);
+  }
+  assert.ok(!JSON.stringify(after).includes("uk_"), "库里出现了形似用户钥匙的值");
+});
+
+test("走审批建号时名字一次就对 ⇒ 同意那一刻就标记已回填，不让前端白跑一趟", async () => {
+  const h = harness();
+  const iss = await h.user("POST", "/invites", { require_approval: true });
+  await h.pub("/invites/redeem", { code: iss.body.code, name: "小蓝" });
+  await h.user("POST", `/invites/${iss.body.id}/approve`,
+    { bot_uid: "guest_bot", bot_token: "bf_secret_token" });
+
+  assert.ok(h.rows()[0].name_applied_at > 0);
+});
+
+test("老库没有 name_applied_at 这一列时能自动补上（幂等）", () => {
+  const db = new DatabaseSync(":memory:");
+  // 造一张"补列之前"的老表 —— 少了 name_applied_at。
+  db.exec(`CREATE TABLE invites (
+    id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, inviter_uid TEXT NOT NULL,
+    space_id TEXT NOT NULL, require_approval INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL, bot_uid TEXT, sealed_token TEXT, claim_name TEXT,
+    claim_owner TEXT, claim_desc TEXT, note TEXT, expires_at INTEGER NOT NULL,
+    redeemed_at INTEGER, decided_at INTEGER, delivered_at INTEGER,
+    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
+  const cols = () =>
+    new Set(db.prepare("PRAGMA table_info(invites)").all().map((r) => r.name));
+  assert.ok(!cols().has("name_applied_at"));
+
+  const mk = () => createInvites({
+    db, spaceId: "sp_1", apiBase: "x", hostApiUrl: "x",
+    sealSecretEnv: "s", sealKeyPath: "",
+  });
+  mk();
+  assert.ok(cols().has("name_applied_at"));
+  mk(); // 再来一次不许抛（ADD COLUMN 重复执行会抛，所以必须先判断）
+});

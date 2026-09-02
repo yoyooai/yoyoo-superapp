@@ -16,7 +16,7 @@ import { createRoot } from "react-dom/client";
 import { createOctoModule } from "./host/octo";
 import InviteAIDialog from "./shell/InviteAIDialog";
 import RemoveAIDialog, { type RemoveAITarget } from "./shell/RemoveAIDialog";
-import { InviteApi } from "./api/invite";
+import { InviteApi, startNameReconciler } from "./api/invite";
 import type { HostAdapter } from "./host/types";
 import SuperAppPage from "./shell/SuperAppPage";
 import SuperAppSidebar from "./shell/SuperAppSidebar";
@@ -184,6 +184,20 @@ function mount(host: HostAdapter): void {
       await new Promise((r) => setTimeout(r, 500));
     }
   })();
+
+  // 「邀请 AI」的名字回填器 —— 苏白 2026-09-02 定的默认体验：
+  // "默认直接进来，但它总得给自己起个名字，不要顶个「受邀 AI · 待接受」"。
+  //
+  // 为什么是**后台跑**而不是放在邀请弹层里：欠着的名字要在他"打开界面"的时候补上，
+  // 而不是"再点开一次邀请弹层"的时候 —— 后者等于要他为一件系统该自己做的事多点两下。
+  // 改名要他的 uk_ 钥匙、只有浏览器里有，所以这件事只能由这里做（见 api/invite.ts）。
+  // 节奏和"页面在后台就跳过"的判断都在 startNameReconciler 里（可测）。
+  startNameReconciler(
+    new InviteApi(
+      () => host.identity()?.token,
+      () => host.identity()?.spaceId
+    )
+  );
 
   // 「邀请 AI」：通讯录顶上那个入口被点时，宿主只"喊一声"，弹层在我们这边。
   // 与 ONBOARDING_FINISHED_HOOK 同一套做法（宿主开一个洞，去哪/长什么样归我们），

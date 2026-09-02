@@ -17,8 +17,14 @@
 /** 渲染器当前支持的组件词汇 —— 这份清单同时用于约束模型和校验产物 */
 export const VOCAB = [
   "page", "card", "section", "heading", "text", "badge",
-  "divider", "list", "table", "button",
+  "divider", "list", "table", "button", "script",
 ];
+
+/**
+ * `script` 节点的代码上限——不是安全边界（安全靠沙盒隔离，见 BlueprintRenderer.tsx
+ * 里的 ScriptSandbox），只是防止把一份小说塞进一条应用记录里。
+ */
+const SCRIPT_CODE_LIMIT = 20_000;
 
 /**
  * 把任意结构收敛成渲染器认识的样子。
@@ -42,6 +48,18 @@ export function sanitizeBlueprint(node, depth = 0) {
     // 不认识 → 降级成文本，尽量保住它想表达的内容
     out.value = String(node.value ?? node.text ?? node.title ?? node.label ?? "");
     if (!out.value) return null;
+    return out;
+  }
+
+  // `script` 单独一条分支——它没有 title/items/children 这些字段，只有一段代码。
+  // 安全性完全不来自这里的校验（代码内容不做静态分析，那是骗自己），
+  // 而来自渲染端把它丢进一个没有 allow-same-origin、CSP 锁死出站网络的沙盒 iframe
+  // （见 BlueprintRenderer.tsx 的 ScriptSandbox）。这里只做"不是字符串/超长"这类结构性拦截。
+  if (out.type === "script") {
+    const code = typeof node.code === "string" ? node.code.slice(0, SCRIPT_CODE_LIMIT) : "";
+    if (!code.trim()) return null; // 空脚本没有意义，降级成不存在（不渲染一个空壳沙盒）
+    out.code = code;
+    if (typeof node.title === "string") out.title = node.title.slice(0, 80);
     return out;
   }
 

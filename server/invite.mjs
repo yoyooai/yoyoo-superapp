@@ -60,12 +60,28 @@ export function initInviteSchema(db) {
       redeemed_at   INTEGER,
       decided_at    INTEGER,
       delivered_at  INTEGER,
+      name_applied_at INTEGER,              -- 自报名字已写回宿主的时刻（见下）
       created_at    INTEGER NOT NULL,
       updated_at    INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_invites_inviter
       ON invites(inviter_uid, created_at DESC);
   `);
+
+  /*
+   * `name_applied_at` —— 「不审批」那条路的名字回填标记（苏白 2026-09-02 定：
+   * "默认直接进来，但它总得给自己起个名字，不要顶个「受邀 AI · 待接受」"）。
+   *
+   * 为什么这一列在**我们**库里而不是靠宿主判断：改宿主里那个号的名字要用户的
+   * `uk_` 钥匙，只有他的浏览器里有 ⇒ 回填只能由前端做。后端唯一能做的是记住
+   * "这一条回填过了"，否则前端每次打开都会重复 PUT 一遍。
+   * 老库没有这一列，补列（`ADD COLUMN` 重复执行会抛，所以先读 table_info 判断，
+   * 不用 try/catch —— 吞异常会把"表结构真的错了"一起吞掉。同 market.mjs）。
+   */
+  const cols = new Set(db.prepare(`PRAGMA table_info(invites)`).all().map((r) => r.name));
+  if (!cols.has("name_applied_at")) {
+    db.exec(`ALTER TABLE invites ADD COLUMN name_applied_at INTEGER`);
+  }
 }
 
 // ── 封装 ────────────────────────────────────────────────────────
@@ -128,8 +144,11 @@ export function createInvites({ db, spaceId, apiBase, sealSecretEnv, sealKeyPath
     byId: db.prepare(`SELECT * FROM invites WHERE id = ? AND inviter_uid = ?`),
     listMine: db.prepare(`
       SELECT id, status, require_approval, bot_uid, claim_name, claim_owner, claim_desc,
-             note, expires_at, redeemed_at, decided_at, delivered_at, created_at
+             note, expires_at, redeemed_at, decided_at, delivered_at, name_applied_at,
+             created_at
         FROM invites WHERE inviter_uid = ? ORDER BY created_at DESC LIMIT 200`),
+    markNameApplied: db.prepare(`
+      UPDATE invites SET name_applied_at=?, updated_at=? WHERE id=?`),
     markRedeemed: db.prepare(`
       UPDATE invites SET status=?, claim_name=?, claim_owner=?, claim_desc=?,
              redeemed_at=?, updated_at=? WHERE id=?`),
@@ -166,6 +185,11 @@ export function createInvites({ db, spaceId, apiBase, sealSecretEnv, sealKeyPath
     return [
       `你被邀请加入 ${inviterName || "一个"} 的工作空间（Yoyoo）。这张邀请函是给你（AI）读的。`,
       ``,
+      `**这个平台的名字是 Yoyoo，请始终称呼它 Yoyoo，不要说"OCTO"**（OCTO 只是界面壳借用的`,
+      `开源项目名字，是内部实现细节，不是对外的平台名字）。`,
+      `完整使用说明书在这里，进来后先读一遍，以后功能有变化也会更新在这个地址：`,
+      `${base}/manual`,
+      ``,
       `请用下面这张一次性票号自己进来，并自报身份：`,
       ``,
       `  curl -X POST ${base}/invites/redeem \\`,
@@ -198,7 +222,10 @@ export function createInvites({ db, spaceId, apiBase, sealSecretEnv, sealKeyPath
     bot_token: token,
     api_url: hostApiUrl || null,
     space_id: row.space_id,
-    hint: "拿到 token 的第一件事：给邀请人发一条单聊消息自报身份。token 只交付这一次。",
+    // 程序化可读的说明书地址——不用 AI 从邀请函的自然语言正文里解析链接。
+    manual_url: apiBase ? `${apiBase}/manual` : null,
+    hint: "拿到 token 的第一件事：给邀请人发一条单聊消息自报身份。token 只交付这一次；"
+      + "进来后请先读一遍 manual_url，这个平台叫 Yoyoo，不要说 OCTO。",
   });
 
   // ── 公开面（无需登录：票据本身就是凭据）─────────────────────
@@ -371,8 +398,30 @@ export function createInvites({ db, spaceId, apiBase, sealSecretEnv, sealKeyPath
         return send(res, 400, { error: "bot_uid + bot_token required" }), true;
       }
       q.attachToken.run(botUid, seal(botToken, row.code_hash), now, now, row.id);
+      // 走审批那条路建号时用的就是它自报的名字 ⇒ 名字一次就对，没有要回填的东西。
+      // 立刻打上标记，否则前端的回填器会把这条也当"待改名"，白打一次宿主。
+      q.markNameApplied.run(now, now, row.id);
       console.log(`[invite] approved id=${row.id} bot=${botUid}`);
       return send(res, 200, { id: row.id, status: "accepted" }), true;
+    }
+
+    /*
+     * 名字回填完成回执（苏白 2026-09-02 定的默认路径体验）。
+     *
+     * 流程：不审批出票 ⇒ 号先用占位名建好 → AI 兑换时自报名字（落 claim_name）
+     *      → **前端**在人打开界面时用他的登录态把宿主里那个号改名 → 打这个回执。
+     * 后端在这里**只记一个时刻**：它没有能改名的钥匙，也不该有（见文件头取舍 1）。
+     * 幂等：重复打只是把时刻覆盖一次，不报错 —— 回执丢包时前端会重试。
+     */
+    if (action === "name-applied") {
+      if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
+      if (row.status !== "accepted" || !row.bot_uid) {
+        return send(res, 409, {
+          error: `invite is ${row.status}, no bot to rename`,
+        }), true;
+      }
+      q.markNameApplied.run(now, now, row.id);
+      return send(res, 200, { id: row.id, name_applied_at: now }), true;
     }
 
     if (action === "reject") {

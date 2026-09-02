@@ -7,7 +7,7 @@
   "types": "src/index.tsx",
   "scripts": {
     "test": "vitest run && npm run test:server",
-    "test:server": "node --test server/*.test.mjs && node server/smoke.mjs && node server/market-smoke.mjs && node server/invite-smoke.mjs",
+    "test:server": "node --test server/*.test.mjs && node server/smoke.mjs && node server/market-smoke.mjs && node server/invite-smoke.mjs && node server/bot-authoring-smoke.mjs && node server/connectors-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {

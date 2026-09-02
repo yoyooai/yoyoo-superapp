@@ -223,11 +223,20 @@ async function main() {
   const noBpBot = await botApi("/apps/for", { owner_uid: OWNER_UID_AS_SENT });
   check("缺 blueprint → 400", noBpBot.status === 400, `实际 ${noBpBot.status}`);
 
-  const wrongMethod = await fetch(`http://127.0.0.1:${PORT}/yoyoo/v1/apps/for`, {
+  // 09-03 新增：GET /apps/for 现在是"以 bot 身份列出某个人名下的应用"这个真功能，
+  // 不再是"未实现的方法"——没被当成应用 id 去查（那样会是 404/401），而是走列表分支。
+  const noOwnerList = await fetch(`http://127.0.0.1:${PORT}/yoyoo/v1/apps/for`, {
     method: "GET", headers: { authorization: `Bearer ${BOT_TOKEN}` },
   });
-  check("GET /apps/for → 405（没被当成应用 id 去查，那样会是 404/401）",
-    wrongMethod.status === 405, `实际 ${wrongMethod.status}`);
+  check("GET /apps/for 缺 owner_uid → 400", noOwnerList.status === 400, `实际 ${noOwnerList.status}`);
+
+  const listBefore = await fetch(
+    `http://127.0.0.1:${PORT}/yoyoo/v1/apps/for?owner_uid=${encodeURIComponent(OWNER_UID_AS_SENT)}`,
+    { headers: { authorization: `Bearer ${BOT_TOKEN}` } },
+  );
+  const listBeforeJson = await listBefore.json();
+  check("GET /apps/for?owner_uid= 合法请求 → 200", listBefore.status === 200, `实际 ${listBefore.status}`);
+  check("返回的是一个数组（不管前面步骤是否已经造过别的应用）", Array.isArray(listBeforeJson.items));
 
   // —— 正路 ——
   const made = await botApi("/apps/for", {
@@ -247,6 +256,13 @@ async function main() {
   const ownerOpen = await api(PORT, "GET", `/apps/${madeId}`);
   check("用户能打开它、内容是 AI 写的那份",
     ownerOpen.status === 200 && ownerOpen.json?.blueprint?.children?.[0]?.value === "磁盘看板");
+
+  const listAfter = await fetch(
+    `http://127.0.0.1:${PORT}/yoyoo/v1/apps/for?owner_uid=${encodeURIComponent(OWNER_UID_AS_SENT)}`,
+    { headers: { authorization: `Bearer ${BOT_TOKEN}` } },
+  );
+  const listAfterJson = await listAfter.json();
+  check("bot 面列表现在也能看到刚造的这个", listAfterJson.items?.some((a) => a.id === madeId));
 
   // AI 产的 JSON 一样要过收敛器
   const dirty = await botApi("/apps/for", {

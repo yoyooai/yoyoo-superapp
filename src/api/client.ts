@@ -119,6 +119,37 @@ export class SensitiveContentError extends ApiError {
  */
 const DEFAULT_BASE = "/yoyoo/v1";
 
+// ── 连接器 ──────────────────────────────────────────────────────
+/** 列表/创建响应里的一条——从不含密钥原文，只有 has_secret 说明存没存 */
+export interface Connector {
+  id: string;
+  name: string;
+  base_url: string;
+  auth_type: "none" | "bearer" | "header" | "basic";
+  header_name?: string | null;
+  created_by: "human" | "ai";
+  created_at: number;
+  updated_at: number;
+  has_secret: 0 | 1;
+}
+
+export interface CreateConnectorInput {
+  name: string;
+  base_url: string;
+  auth_type: "none" | "bearer" | "header" | "basic";
+  /** auth_type=none 时不需要；其余必填。创建后即刻加密落库，前端不留副本 */
+  secret?: string;
+  /** 仅 auth_type=header 时需要 */
+  header_name?: string;
+}
+
+export interface ConnectorCallRequest {
+  method?: string;
+  path: string;
+  query?: Record<string, string>;
+  body?: unknown;
+}
+
 export class SuperAppApi {
   constructor(
     private readonly getToken: () => string | undefined,
@@ -262,5 +293,30 @@ export class SuperAppApi {
 
   setPins(appIds: string[]): Promise<PinList> {
     return this.req("/pins", { method: "PUT", body: JSON.stringify({ app_ids: appIds }) });
+  }
+
+  // ── 连接器 ──────────────────────────────────────────────────
+  // 🔴 这里从来见不到密钥原文——列表接口后端本来就不回，创建时传一次就丢进请求体，
+  //    响应里也只有 has_secret 这个布尔值。
+  listConnectors(): Promise<{ items: Connector[] }> {
+    return this.req("/connectors");
+  }
+
+  createConnector(input: CreateConnectorInput): Promise<Connector> {
+    return this.req("/connectors", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  removeConnector(id: string): Promise<{ ok: true }> {
+    return this.req(`/connectors/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  /**
+   * 代理调用——真正的出站请求、真正的凭据填充，全部发生在后端。
+   * 这个方法就是 `ScriptSandbox` 的 `onConnectorCall` 回调应该接的那一根线：
+   * 沙盒 iframe 里的脚本不知道、也拿不到 token，只有拿到真会话 token 的这一层
+   * 才能替它把请求送出去。
+   */
+  callConnector(id: string, req: ConnectorCallRequest): Promise<{ status: number; content_type: string; body: unknown }> {
+    return this.req(`/connectors/${encodeURIComponent(id)}/call`, { method: "POST", body: JSON.stringify(req) });
   }
 }

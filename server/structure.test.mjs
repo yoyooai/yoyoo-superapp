@@ -54,14 +54,23 @@ test("bot 白名单 fail-closed：没配等于全拒", () => {
 
 // ── 市场（SPEC-market §6）─────────────────────────────────────────
 
-test("市场的两条写入路径也过 normalizeForStore（判据只有一份）", () => {
+test("市场的应用/卡片两种内容都过各自唯一的收敛器（判据只有一份，09-03 泛化后）", () => {
   const src = read("market.mjs");
   assert.match(src, /import \{ normalizeForStore \} from "\.\/blueprint\.mjs"/,
     "market.mjs 必须 import 那份唯一的收敛器，不许自己判");
-  // 发布照快照（snapshot 里一次）+ 安装写进 apps（一次）+ sync 覆盖（一次）
-  const hits = src.match(/normalizeForStore\(/g) || [];
-  assert.ok(hits.length >= 3,
-    `market.mjs 里 normalizeForStore 只出现 ${hits.length} 次，应当 >=3（发布/安装/更新各一次）`);
+  assert.match(src, /import \{ normalizeCardForStore \} from "\.\/card-store\.mjs"/,
+    "market.mjs 必须 import 卡片那份唯一的收敛器，不许自己判");
+  // 09-03 泛化后，发布/安装两条路径共用 STORES[kind].normalize 这一个入口
+  // （不再是各自直接调用），sync 覆盖仍是 handleAppAction 里的直接调用 —— 三处都要在。
+  assert.match(src, /normalize:\s*\(raw\)\s*=>\s*normalizeForStore\(raw\)/,
+    "STORES.app 没有把 normalize 接到 normalizeForStore 上");
+  assert.match(src, /normalize:\s*\(raw\)\s*=>\s*normalizeCardForStore\(raw\)/,
+    "STORES.card 没有把 normalize 接到 normalizeCardForStore 上");
+  const storeCalls = (src.match(/store\.normalize\(/g) || []).length;
+  assert.ok(storeCalls >= 2,
+    `market.mjs 里 store.normalize( 只出现 ${storeCalls} 次，应当 >=2（快照发布一次、安装一次）`);
+  assert.match(src, /normalizeForStore\(JSON\.parse\(v\.blueprint\)\)/,
+    "handleAppAction 的 sync 分支不再直接调用 normalizeForStore —— 更新覆盖这条路径不能绕过收敛器");
   assert.doesNotMatch(src, /JSON\.stringify\(body\.blueprint\)/,
     "有一条市场路径把请求里的 blueprint 直接入库了");
 });

@@ -304,7 +304,10 @@ const SuperAppStage: React.FC<SuperAppStageProps> = ({ host }) => {
         {notice ? <div className="ysa-notice">{notice}</div> : null}
 
         <section className="ysa-content">
-          <BlueprintRenderer node={open.blueprint} />
+          <BlueprintRenderer
+            node={open.blueprint}
+            onConnectorCall={(connectorId, req) => api.callConnector(connectorId, { ...req, path: req.path || "/" })}
+          />
         </section>
 
         {publishing ? (
