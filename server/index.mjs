@@ -38,6 +38,7 @@ import { createBotAuth } from "./bot-auth.mjs";
 import { createMarket } from "./market.mjs";
 import { createInvites } from "./invite.mjs";
 import { createConnectors } from "./connectors.mjs";
+import { createSellMock } from "./sell-mock.mjs";
 import { send, readJson, clip } from "./http-util.mjs";
 
 const PORT = Number(process.env.PORT || 8790);
@@ -193,6 +194,16 @@ const connectors = createConnectors({
   //    代理逻辑，而假外部服务只能起在 localhost。ship.sh 绝不设这个变量。
   allowPrivateHosts: process.env.CONNECTOR_ALLOW_PRIVATE_HOSTS_FOR_TEST === "1",
 });
+
+// ── Sell Loop 桩（09-03 美妆种子用户验收，见 sell-mock.mjs 文件头）──────
+// 只在配了共享密钥时挂载——没配就是这条演示线关着，不给自己留一个没有凭据保护的口子。
+const SELL_MOCK_SECRET = process.env.SELL_MOCK_SECRET || "";
+// 🔴 这里手写字面量 "/yoyoo/v1" 而不是引用下面的 `ROOT`——`ROOT` 是本文件后面才声明
+//    的 const，此刻引用会撞 temporal dead zone。两处字面量不一致会被
+//    connectors-smoke 等冒烟测出来（404），不是隐患。
+const sellMock = SELL_MOCK_SECRET
+  ? createSellMock({ db, prefix: "/yoyoo/v1/demo/sell-backend", secret: SELL_MOCK_SECRET })
+  : null;
 
 // ── HTTP 小工具 ─────────────────────────────────────────────────
 // send / readJson / clip 已抬到 http-util.mjs —— market.mjs 要用同一份，
@@ -398,6 +409,15 @@ async function handle(req, res) {
     });
     return res.end(text);
   }
+
+  // Sell 桩：自己的鉴权（共享密钥），挡在 apps/market/... 那道门之前——
+  // 它本来就不属于那几类，硬塞进那道门只会被 404 掉。
+  if (sellMock && path.startsWith("/yoyoo/v1/demo/sell-backend")) {
+    const hit = await sellMock.handle(req, res, { path, url, llm: LLM, now: Date.now() });
+    if (hit) return;
+    return send(res, 404, { error: "not found" });
+  }
+
   const isMarket = path.startsWith(`${ROOT}/market`) || path === `${ROOT}/pins`;
   const isInvite = path.startsWith(`${ROOT}/invites`);
   const isCards = path.startsWith(`${ROOT}/cards`);
