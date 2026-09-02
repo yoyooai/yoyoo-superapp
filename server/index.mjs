@@ -41,6 +41,7 @@ import { createConnectors } from "./connectors.mjs";
 import { createSellMock } from "./sell-mock.mjs";
 import { createGrowMock } from "./grow-mock.mjs";
 import { createInnovateMock } from "./innovate-mock.mjs";
+import { createCompanyMemory } from "./company-memory.mjs";
 import { send, readJson, clip } from "./http-util.mjs";
 
 const PORT = Number(process.env.PORT || 8790);
@@ -213,6 +214,10 @@ const growMock = GROW_MOCK_SECRET
 const INNOVATE_MOCK_SECRET = process.env.INNOVATE_MOCK_SECRET || "";
 const innovateMock = INNOVATE_MOCK_SECRET
   ? createInnovateMock({ db, prefix: "/yoyoo/v1/demo/innovate-backend", secret: INNOVATE_MOCK_SECRET })
+  : null;
+const MEMORY_MOCK_SECRET = process.env.MEMORY_MOCK_SECRET || "";
+const companyMemory = MEMORY_MOCK_SECRET
+  ? createCompanyMemory({ db, prefix: "/yoyoo/v1/demo/company-memory", secret: MEMORY_MOCK_SECRET })
   : null;
 
 // ── HTTP 小工具 ─────────────────────────────────────────────────
@@ -434,6 +439,11 @@ async function handle(req, res) {
   }
   if (innovateMock && path.startsWith("/yoyoo/v1/demo/innovate-backend")) {
     const hit = await innovateMock.handle(req, res, { path, url, llm: LLM, now: Date.now() });
+    if (hit) return;
+    return send(res, 404, { error: "not found" });
+  }
+  if (companyMemory && path.startsWith("/yoyoo/v1/demo/company-memory")) {
+    const hit = await companyMemory.handle(req, res, { path });
     if (hit) return;
     return send(res, 404, { error: "not found" });
   }
