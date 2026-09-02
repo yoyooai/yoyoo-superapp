@@ -39,6 +39,7 @@ import { createMarket } from "./market.mjs";
 import { createInvites } from "./invite.mjs";
 import { createConnectors } from "./connectors.mjs";
 import { createSellMock } from "./sell-mock.mjs";
+import { createGrowMock } from "./grow-mock.mjs";
 import { send, readJson, clip } from "./http-util.mjs";
 
 const PORT = Number(process.env.PORT || 8790);
@@ -203,6 +204,10 @@ const SELL_MOCK_SECRET = process.env.SELL_MOCK_SECRET || "";
 //    connectors-smoke 等冒烟测出来（404），不是隐患。
 const sellMock = SELL_MOCK_SECRET
   ? createSellMock({ db, prefix: "/yoyoo/v1/demo/sell-backend", secret: SELL_MOCK_SECRET })
+  : null;
+const GROW_MOCK_SECRET = process.env.GROW_MOCK_SECRET || "";
+const growMock = GROW_MOCK_SECRET
+  ? createGrowMock({ db, prefix: "/yoyoo/v1/demo/grow-backend", secret: GROW_MOCK_SECRET })
   : null;
 
 // ── HTTP 小工具 ─────────────────────────────────────────────────
@@ -414,6 +419,11 @@ async function handle(req, res) {
   // 它本来就不属于那几类，硬塞进那道门只会被 404 掉。
   if (sellMock && path.startsWith("/yoyoo/v1/demo/sell-backend")) {
     const hit = await sellMock.handle(req, res, { path, url, llm: LLM, now: Date.now() });
+    if (hit) return;
+    return send(res, 404, { error: "not found" });
+  }
+  if (growMock && path.startsWith("/yoyoo/v1/demo/grow-backend")) {
+    const hit = await growMock.handle(req, res, { path, url, llm: LLM, now: Date.now() });
     if (hit) return;
     return send(res, 404, { error: "not found" });
   }
