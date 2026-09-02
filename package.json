@@ -1,0 +1,27 @@
+{
+  "name": "@yoyoo/superapp-module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Yoyoo 超级应用模块 —— 挂在宿主 IM 的 enterprise 插槽上，可整个拔走换壳",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "scripts": {
+    "test": "vitest run && npm run test:server",
+    "test:server": "node --test server/*.test.mjs && node server/smoke.mjs && node server/market-smoke.mjs && node server/invite-smoke.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@octo/base": "link:../octo-check/octo-web/packages/dmworkbase",
+    "@types/node": "^22.20.1",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

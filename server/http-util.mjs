@@ -1,0 +1,32 @@
+/**
+ * HTTP 小工具 —— index.mjs 与 market.mjs 共用的**唯一一份**。
+ *
+ * 抬成独立模块的理由和 blueprint.mjs 一样：市场那批路由需要同样的
+ * `send` / `readJson` / `clip`。留在 index.mjs 里的话，market.mjs 要么去 import 一个
+ * 名字叫"入口"的模块，要么就地抄一份 —— 后者会让"请求体上限"这种安全参数
+ * 出现两个值，而且是静悄悄地。
+ */
+
+export function send(res, code, body) {
+  const data = JSON.stringify(body);
+  res.writeHead(code, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  res.end(data);
+}
+
+export async function readJson(req, limitBytes = 512 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > limitBytes) throw new Error("payload too large");
+    chunks.push(c);
+  }
+  if (!size) return {};
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+/** 字符串长度收口，防止有人（或 AI）塞一篇小说进来 */
+export const clip = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");

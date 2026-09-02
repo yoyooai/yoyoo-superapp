@@ -1,0 +1,28 @@
+# 依赖与构建产物
+node_modules/
+build/
+dist/
+.vite/
+*.tsbuildinfo
+
+# 运行时状态与落盘数据（连接器游标、socket、票据库等）——绝不入仓
+.state/
+*.sock
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.db
+
+# 🔴 凭据类。这个仓是私有的，但"私有"不是可以存密钥的理由：
+#    推上去就收不回（缓存/索引/fork 都可能留着）。密钥一律留在 .env / 机器上。
+.env
+.env.*
+*.key
+*.pem
+*.p12
+secrets.json
+**/wrap-key*
+
+# 编辑器与系统垃圾
+.DS_Store
+*.swp
