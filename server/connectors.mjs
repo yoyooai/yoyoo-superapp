@@ -29,7 +29,11 @@ import { send, readJson, clip } from "./http-util.mjs";
 
 const AUTH_TYPES = new Set(["none", "bearer", "header", "basic"]);
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-const CALL_TIMEOUT_MS = 10_000;
+// 🔴 09-03 真撞过：Innovate 桩接了真 LLM 网关生成假设，单次调用实测 9.5s，
+//    10s 的外层超时几乎必炸（代理本身还要再加一跳的开销，撞线概率更高）。
+//    外层超时必须明显宽于"一个正常业务系统可能的慢响应"，不能只按"网络调用
+//    该多快"的直觉设，AI 生成类下游天然更慢。
+const CALL_TIMEOUT_MS = 30_000;
 const CALL_BODY_LIMIT = 2 * 1024 * 1024; // 2MB，响应体读到这就截断拒绝
 const MAX_CONNECTORS_PER_OWNER = 20;
 
