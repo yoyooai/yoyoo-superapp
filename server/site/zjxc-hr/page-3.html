@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>员工 Agent · 中际旭创 HR Agent</title>
+  <style>
+:root{
+  color-scheme:light;
+  --y-bg:#FFFFFF;
+  --y-surface:#FDFDFE;
+  --y-surface-2:#F1F1F4;
+  --y-text:#17171C;
+  --y-text-2:#55555C;
+  --y-text-3:#86868B;
+  --y-border:rgba(16,24,40,.08);
+  --y-border-strong:rgba(16,24,40,.16);
+  --y-accent:#0D74CE;
+  --y-accent-weak:rgba(13,116,206,.08);
+  --y-on-accent:#FFFFFF;
+  /* 语义色：ok / warn / partial / bad 四个槽。partial 是独立的一个——
+     跑了一半不是成功，也不是失败，把它画成任何一边都是在说谎。 */
+  --y-ok:#218358;
+  --y-warn:#AB6400;
+  --y-partial:#BD4B00;
+  --y-bad:#CE2C31;
+  --y-ok-weak:#E9F6EE;
+  --y-warn-weak:#FEF3DD;
+  --y-partial-weak:#FFEEE0;
+  --y-bad-weak:#FEEBEC;
+  --y-info:#3A5BC7;
+  --y-info-weak:#EDF0FE;
+  /* 场景强调色槽（可选）：多板块应用用来做"每块换一个主题色"，
+     不是给单页模块用的——单页模块该用 --y-accent。 */
+  --y-scene-contacts:#0D74CE;
+  --y-scene-contacts-weak:rgba(13,116,206,.08);
+  --y-scene-contacts-on:#FFFFFF;
+  --y-scene-archive:#3A5BC7;
+  --y-scene-archive-weak:rgba(58,91,199,.08);
+  --y-scene-archive-on:#FFFFFF;
+  --y-scene-ticket:#BD4B00;
+  --y-scene-ticket-weak:rgba(189,75,0,.08);
+  --y-scene-ticket-on:#FFFFFF;
+  --y-scene-cost:#00786B;
+  --y-scene-cost-weak:rgba(0,120,107,.08);
+  --y-scene-cost-on:#FFFFFF;
+  --y-scene-principle:#6E56CF;
+  --y-scene-principle-weak:rgba(110,86,207,.08);
+  --y-scene-principle-on:#FFFFFF;
+  /* Hero 高光：深浅两档不同值 —— 白斑不是"浅色的柔光在深色下的自然结果" */
+  --y-glare:rgba(255,255,255,.55);
+  /* 📊 图表色槽。分类色只准给"标记"（条/线/点）上色，**永远不给文字上色** ——
+     检验单：文字一律用 --y-text/-2/-3，身份靠旁边那个色块传达。 */
+  --y-cat-1:#2a78d6;--y-cat-2:#eb6834;--y-cat-3:#1baf7a;--y-cat-4:#eda100;
+  --y-cat-5:#e87ba4;--y-cat-6:#008300;--y-cat-7:#4a3aa7;--y-cat-8:#e34948;
+  --y-seq-1:#86b6ef;--y-seq-2:#5598e7;--y-seq-3:#2a78d6;--y-seq-4:#256abf;--y-seq-5:#104281;
+  --y-div-pos:#2a78d6;--y-div-neg:#d03b3b;--y-div-mid:#E4E4E8;
+  --y-dim:#D3D3D9;
+
+  /* ── 📐 刻度层（09-08 第五刀）──────────────────────────────────────
+     🔴 这一层**不是我定的**，数值整段搬自 Radix Themes 的 token 文件
+        （radix-ui/themes → src/styles/tokens/{typography,space,radius,shadow}.css，MIT）。
+        搬它的理由：09-08 之前这份正本只收了**颜色**，字号/间距/阴影仍散在组件层里
+        手写（33px / 29px / 14.5px / 12.5px / 10.5px 这种"当天手感"值），
+        于是"审美每次现场生产"这个病根只被治了一半。
+     🔴 只搬**数值刻度**，不搬 Radix 的组件代码（我们沙盒里没有 React、没有构建步骤）。
+     ⚠️ 刻意**不加** --y-font-display / --y-font-mono 之类字族槽：
+        09-04 那次加过一层排版层，溪午比对后判定"旧的更好看"并整体撤回，
+        design-lint 现在只认 --y-font。这里加的是**字号**刻度，不是字族。 */
+
+  /* 字号 9 档 + 配套行高 + 配套字距（字号越大字距越紧 —— "精细排版"主要就是这一条） */
+  --y-t1:12px; --y-t2:14px; --y-t3:16px; --y-t4:18px; --y-t5:20px;
+  --y-t6:24px; --y-t7:28px; --y-t8:35px; --y-t9:60px;
+  --y-lh1:16px; --y-lh2:20px; --y-lh3:24px; --y-lh4:26px; --y-lh5:28px;
+  --y-lh6:30px; --y-lh7:36px; --y-lh8:40px; --y-lh9:60px;
+  --y-ls1:.0025em; --y-ls2:0em; --y-ls3:0em; --y-ls4:-.0025em; --y-ls5:-.005em;
+  --y-ls6:-.00625em; --y-ls7:-.0075em; --y-ls8:-.01em; --y-ls9:-.025em;
+
+  /* 圆角 6 档（Radix）。卡片档从 22 收到 16 —— 22px 在密集工作台里读起来是"圆滚滚的
+     气泡卡"，不是苹果那种利落；16 是正本允许区间（16–22）的下限，测试守着这条线。 */
+  --y-r1:3px; --y-r2:4px; --y-r3:6px; --y-r4:8px; --y-r5:12px; --y-r6:16px;
+  --y-radius:16px;
+  --y-radius-sm:10px;
+  --y-radius-pill:999px;
+
+  /* 阴影：一律染色，且**每级都先叠一层 1px 描边环**再叠两层大扩散低透明投影。
+     单层黑影＝卡片像贴纸；描边环+多层扩散＝"柔和层次"。--y-ring 单独导出，
+     给需要只要环不要投影的地方（表格头、图表容器）用。 */
+  --y-ring:rgba(16,24,40,.055);
+  --y-shadow:0 0 0 1px rgba(16,24,40,.055),0 1px 2px -1px rgba(16,24,40,.10),0 2px 6px -2px rgba(16,24,40,.06);
+  --y-shadow-lg:0 0 0 1px rgba(16,24,40,.055),0 8px 24px -6px rgba(16,24,40,.13),0 18px 44px -12px rgba(16,24,40,.10);
+
+  /* 间距 9 档（Radix 的 4/8/12/16/24/32/40/48/64）。前六档与旧的 --y-s1..s6 完全一致，
+     所以是**纯追加**，老模块不会因为这次改动位移。 */
+  --y-s1:4px; --y-s2:8px; --y-s3:12px; --y-s4:16px; --y-s5:24px; --y-s6:32px;
+  --y-s7:40px; --y-s8:48px; --y-s9:64px;
+  --y-font:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--y-bg);color:var(--y-text)}
+body{margin:0;padding:12px;font:14px/1.6 var(--y-font);-webkit-font-smoothing:antialiased}
+/* 数字一律等宽：不加这条，表格里的数字会随内容左右跳，一眼就廉价。
+   .y-num 给手写的地方用，td/th 直接兜住表格。
+   （注意：本块在模板字符串里，注释中不能出现反引号——会提前闭合，已踩过。） */
+.y-num,td,th{font-variant-numeric:tabular-nums}
+a{color:var(--y-accent)}
+:focus-visible{outline:2px solid var(--y-accent);outline-offset:2px}
+::selection{background:var(--y-accent-weak)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--y-border-strong);border-radius:var(--y-radius-pill)}
+::-webkit-scrollbar-track{background:transparent}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+  <style>*{box-sizing:border-box;font-family:var(--y-font)}
+body{margin:0;background:var(--y-bg);color:var(--y-text);-webkit-font-smoothing:antialiased}
+.wrap{padding:2px 2px 34px;max-width:1120px}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hd{position:relative;overflow:hidden;border-radius:var(--y-radius);padding:var(--y-s6) var(--y-s6);
+    margin-bottom:var(--y-s5);background:var(--y-surface);box-shadow:var(--y-shadow)}
+/* 🔴 09-08 看深色截图改：原来是 border-radius:50% 的**硬边圆**，
+   浅色档看不出来，深色档就是一块边缘齐整的灰斑（像渲染坏了）。
+   改成径向渐变淡出——这才是"高光"，不是"一个圆"。 */
+.hd::after{content:"";position:absolute;right:-60px;top:-90px;width:300px;height:300px;pointer-events:none;
+    background:radial-gradient(circle at center,var(--y-glare) 0%,transparent 70%)}
+.hd .kicker{margin:0;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;
+    font-size:10px;color:var(--y-text-3)}
+.hd h1{margin:10px 0 0;font-size:var(--y-t7);line-height:var(--y-lh7);font-weight:700;
+    letter-spacing:var(--y-ls7);color:var(--y-text)}
+.hd p.sub{margin:10px 0 0;font-size:var(--y-t2);color:var(--y-text-2);max-width:660px;line-height:1.75}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:relative;z-index:1}
+.chip{background:var(--y-surface);border:1px solid var(--y-border);color:var(--y-text-2);
+    border-radius:var(--y-radius-pill);padding:6px 14px;font-size:12px;font-weight:600}
+button.chip{cursor:pointer}
+.chip.on{background:var(--y-accent);border-color:var(--y-accent);color:var(--y-on-accent)}
+
+/* ── 分区标题 ─────────────────────────────────────────────── */
+.sec{margin:var(--y-s6) 0 var(--y-s4);display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.sec h2{margin:0;font-size:var(--y-t4);line-height:var(--y-lh4);font-weight:700;
+    letter-spacing:var(--y-ls4);color:var(--y-text);display:flex;align-items:center;gap:8px}
+.sec .sd{margin:4px 0 0;font-size:12px;color:var(--y-text-3)}
+.sec .act{font-size:12px;color:var(--y-accent);font-weight:600;white-space:nowrap}
+
+/* ── 卡片 ────────────────────────────────────────────────── */
+.card{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);
+    padding:var(--y-s4) var(--y-s5);margin-bottom:var(--y-s3);box-shadow:var(--y-shadow)}
+.card.hl{border-color:var(--y-border-strong);box-shadow:var(--y-shadow-lg)}
+.card.flat{box-shadow:none}
+.card.pad0{padding:0;overflow:hidden}
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:820px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.between{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.muted{color:var(--y-text-3);font-size:12px}
+.small{font-size:12px}
+.title{font-weight:700;font-size:14px;color:var(--y-text);line-height:1.45}
+.lead{font-size:13px;color:var(--y-text-2);line-height:1.7}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── 标签 ────────────────────────────────────────────────── */
+.badge{display:inline-block;padding:4px 11px;border-radius:var(--y-radius-pill);font-size:11px;
+    font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.b-pending{background:var(--y-warn-weak);color:var(--y-warn)}
+.b-ai{background:var(--y-accent-weak);color:var(--y-accent)}
+.b-approved{background:var(--y-ok-weak);color:var(--y-ok)}
+.b-rejected{background:var(--y-bad-weak);color:var(--y-bad)}
+.b-measured{background:var(--y-ok-weak);color:var(--y-ok)}
+.b-decided{background:var(--y-accent-weak);color:var(--y-accent)}
+.b-soft{background:var(--y-border);color:var(--y-text-2)}
+.b-ok{background:var(--y-ok-weak);color:var(--y-ok)}
+.b-warn{background:var(--y-warn-weak);color:var(--y-warn)}
+/* 🔴 partial 有自己的槽：跑了一半、算不出、缺料 —— 画成绿或红都是在说谎 */
+.b-partial{background:var(--y-partial-weak);color:var(--y-partial)}
+.b-bad{background:var(--y-bad-weak);color:var(--y-bad)}
+.b-info{background:var(--y-info-weak);color:var(--y-info)}
+
+/* ── 按钮 ────────────────────────────────────────────────── */
+.btn{border:none;border-radius:var(--y-radius-sm);padding:9px 17px;font-size:12px;font-weight:600;
+    cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover:not(:disabled){opacity:.85}
+.btn-p{background:var(--y-accent);color:var(--y-on-accent)}
+.btn-g{background:var(--y-ok);color:var(--y-on-accent)}
+.btn-r{background:var(--y-surface);color:var(--y-bad);border:1px solid var(--y-bad-weak)}
+.btn-o{background:var(--y-surface);color:var(--y-text-2);border:1px solid var(--y-border)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:default}
+input,textarea,select{border:1px solid var(--y-border);border-radius:var(--y-radius-sm);padding:7px 10px;
+    font-size:12px;font-family:inherit;background:var(--y-surface);color:var(--y-text)}
+input:focus,textarea:focus{outline:2px solid var(--y-border-strong);outline-offset:-1px}
+label.fld{display:block;font-size:11px;color:var(--y-text-3);font-weight:600;margin-bottom:3px}
+
+/* ── KPI：主次分明 ────────────────────────────────────────── */
+/* 🔴 四个等重的 KPI 是"从来没决定过什么重要"的视觉形式。.kpi.lead 就是那个主 KPI。 */
+.kpis{display:grid;grid-template-columns:minmax(0,1.35fr) repeat(3,minmax(0,1fr));gap:10px;margin-bottom:4px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);
+    padding:var(--y-s5) var(--y-s5);box-shadow:var(--y-shadow);min-width:0}
+.kpi .k{font-size:11px;color:var(--y-text-3);font-weight:600;letter-spacing:.6px;text-transform:uppercase}
+/* 🔴 09-08 改判：大数字**不用** tabular-nums。检验单原话——等宽数字把每位都撑成 0 的宽度，
+   数字 121 在展示字号下看着松散。等宽只留给需要上下对齐的列（表格行、坐标轴刻度）。 */
+.kpi .v{font-size:var(--y-t7);line-height:var(--y-lh7);font-weight:700;margin-top:4px;
+    letter-spacing:var(--y-ls7);color:var(--y-text);font-variant-numeric:proportional-nums}
+.kpi .d{font-size:11px;color:var(--y-text-3);margin-top:3px;line-height:1.5}
+.kpi.lead{background:var(--y-accent-weak);border-color:var(--y-border-strong)}
+.kpi.lead .k{color:var(--y-accent)}
+.kpi.lead .v{font-size:var(--y-t8);line-height:var(--y-lh8);letter-spacing:var(--y-ls8);font-weight:700}
+.kpi .v.bad{color:var(--y-bad)}
+.kpi .v.partial{color:var(--y-partial)}
+
+/* ── 密度件：决策行 ───────────────────────────────────────── */
+/* 一单一张大卡 = 一屏看两单。改成"一张卡装多行"，一屏看六单，详情收进 <details>。 */
+.dec{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:var(--y-s5);align-items:center;
+    padding:var(--y-s4) var(--y-s5);border-top:1px solid var(--y-border)}
+.dec:first-child{border-top:none}
+.dec:hover{background:var(--y-surface-2)}
+@media(max-width:820px){.dec{grid-template-columns:minmax(0,1fr);gap:8px}}
+.dec .who{min-width:0}
+.dec .who .t{font-weight:700;font-size:var(--y-t2);color:var(--y-text)}
+.dec .who .m{font-size:12px;color:var(--y-text-3);margin-top:2px}
+.dec .acts{display:flex;gap:6px;align-items:center}
+/* 数字块：右对齐 + 等宽，一列数字才能上下对齐着比 */
+.figs{display:flex;gap:16px;text-align:right}
+.fig{min-width:76px}
+.fig .fk{font-size:11px;color:var(--y-text-3);font-weight:600}
+.fig .fv{font-size:17px;font-weight:700;color:var(--y-text);font-variant-numeric:tabular-nums;
+    letter-spacing:-.3px;margin-top:2px}
+.fig .fv.ok{color:var(--y-ok)}.fig .fv.warn{color:var(--y-warn)}
+.fig .fv.bad{color:var(--y-bad)}.fig .fv.partial{color:var(--y-partial)}
+/* 毛利率相对底线的位置：一根细条比一个百分数更快。
+   ⚠️ 刻意不叫 .bar —— 「总览」模块自带一个同名的 7px 三色堆叠条，
+   同名不同义是以后必然踩的坑（谁先加载谁说话），所以这里叫 .mbar。 */
+.mbar{height:4px;border-radius:var(--y-radius-pill);background:var(--y-border);overflow:hidden;margin-top:5px}
+.mbar i{display:block;height:100%;border-radius:var(--y-radius-pill);background:var(--y-accent)}
+.mbar i.ok{background:var(--y-ok)}.mbar i.warn{background:var(--y-warn)}
+.mbar i.bad{background:var(--y-bad)}.mbar i.partial{background:var(--y-partial)}
+
+details.more{margin-top:6px}
+details.more>summary{cursor:pointer;font-size:12px;color:var(--y-accent);font-weight:600;
+    list-style:none;display:inline-block}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"▸ ";font-size:10px}
+details.more[open]>summary::before{content:"▾ "}
+details.more .body{margin-top:8px;padding:10px 12px;background:var(--y-surface-2);
+    border-radius:var(--y-radius-sm);font-size:13px;line-height:1.7;color:var(--y-text-2)}
+
+/* ── 密度件：表格（历史是用来翻的，表格的密度最高）───────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+/* 🔴 表头**不铺底色**：Tabler/Radix 那类"国际化后台"的分层靠分隔线，不靠色块。
+   铺底色的表头会把每张表切成两个色块，密集页面上一眼就是"土"。 */
+.tbl th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--y-text-3);
+    font-weight:600;padding:10px 14px;border-bottom:1px solid var(--y-border-strong);white-space:nowrap}
+.tbl td{padding:12px 14px;border-bottom:1px solid var(--y-border);color:var(--y-text);vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--y-surface-2)}
+.tbl .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl .wrapcell{max-width:280px;color:var(--y-text-2);font-size:12px;line-height:1.6}
+.tscroll{overflow-x:auto}
+
+/* ── 状态件：五种态里的三种（骨架 / 主区大态）───────────────── */
+/* 🔴 "加载中…"三个字不是加载态：它不占位，数据一到页面整个跳一下。 */
+.skel .sk{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);
+    margin-bottom:10px;padding:14px 16px;box-shadow:var(--y-shadow)}
+.skel .ln{height:11px;border-radius:var(--y-radius-pill);background:var(--y-surface-2);
+    animation:ypulse 1.4s ease-in-out infinite}
+.skel .ln+.ln{margin-top:9px}
+@keyframes ypulse{0%,100%{opacity:1}50%{opacity:.45}}
+.skel .kpis .sk{height:78px}
+/* 主区大态：空 / 错。**占据主区**，不是顶上一条细横幅——顶上那条会被人当装饰划过去。 */
+.state{text-align:center;padding:44px 20px;border:1px dashed var(--y-border);
+    border-radius:var(--y-radius);background:var(--y-surface)}
+.state .ic{font-size:26px}
+.state h3{margin:10px 0 0;font-size:14px;font-weight:800;color:var(--y-text)}
+.state p{margin:6px auto 0;font-size:13px;color:var(--y-text-3);max-width:420px;line-height:1.7}
+.state .btn{margin-top:14px}
+.state.err{border-style:solid;border-color:var(--y-bad-weak);background:var(--y-bad-weak)}
+.state.err h3{color:var(--y-bad)}
+.state.err p{color:var(--y-text-2)}
+
+/* ── 杂项 ────────────────────────────────────────────────── */
+.hr{height:1px;background:var(--y-border);margin:12px 0}
+.err{background:var(--y-bad-weak);color:var(--y-bad);border-radius:var(--y-radius-sm);padding:10px 12px;
+    font-size:12px;margin-bottom:12px;border:1px solid var(--y-bad-weak)}
+.load{color:var(--y-text-3);font-size:12px;padding:40px 0;text-align:center}
+.foot{font-size:11px;color:var(--y-text-3);margin-top:8px;line-height:1.6}
+.empty{text-align:center;padding:26px 16px;color:var(--y-text-3);font-size:12px;
+    border:1px dashed var(--y-border);border-radius:var(--y-radius);background:var(--y-surface)}
+.src{font-size:11px;color:var(--y-text-3);background:var(--y-bg);border-radius:6px;padding:3px 8px;
+    display:inline-block}
+
+/* 搜索条 */
+.sbar{display:flex;gap:8px;align-items:center;background:var(--y-surface);border:1px solid var(--y-border);
+    border-radius:var(--y-radius-sm);padding:8px 12px;margin-bottom:14px;box-shadow:var(--y-shadow)}
+.sbar input{flex:1;border:none;padding:4px 2px;font-size:13px;background:transparent}
+.sbar input:focus{outline:none}
+.sbar .ico{color:var(--y-text-3);font-size:13px}
+.sbar .cnt{font-size:11px;color:var(--y-text-3);white-space:nowrap}
+
+/* 时间线行：一条事实 = 标签 + 正文 + 时间 */
+.tl{padding:9px 0;border-top:1px solid var(--y-border);display:flex;gap:9px;align-items:flex-start}
+.tl:first-child{border-top:none}
+.tl .w{flex:1;min-width:0}
+.tl .t{font-size:13px;color:var(--y-text);line-height:1.55}
+
+/* 行内追问（替代 window.prompt —— 沙盒没给 allow-modals，弹层调了是静默无效） */
+.ask{margin-top:8px;padding:10px 12px;background:var(--y-surface-2);border:1px solid var(--y-border);
+    border-radius:var(--y-radius-sm)}
+/* 追问框挂在决策行里时要横跨整行 —— 不写这条它只占第一列（.dec 是三列网格），
+   输入框被挤成半宽，看着像没做完。截图时才看出来的，测试看不出这种事。 */
+.dec>.ask{grid-column:1/-1}
+.ask .fields{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.ask input{width:100%}
+.ask .foot2{display:flex;gap:6px;margin-top:9px;align-items:center}
+.ask .hint{font-size:11px;color:var(--y-text-3);margin-left:auto}
+.ask .bad{color:var(--y-bad)}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   📊 图表原语 + 模块组件（09-08 第四刀）
+
+   🔴 这一段的规格**不是我定的**，逐条搬自 dataviz 检验单
+      （choosing-a-form / marks-and-anatomy / anti-patterns），因为
+      "我现场发挥审美"正是 09-08 那次"又短又少又丑"的病根本身。
+      标记规格：
+        · 条 <=24px 粗；**数据端 4px 圆角、基线端方角**；从单一基线长出
+        · 线 2px，圆头圆角；端点 >=8px 直径且带 2px 底色描边（surface ring）
+        · 面积填充＝该色 10% 透明的一层水washes，永远不是实心块
+        · 网格/轴＝比底色深一档的 **1px 实线**（虚线被明确禁止：读起来像阈值）
+        · 相邻标记之间靠 **2px 底色缝**分隔，不画描边
+        · **绝不给每个点标数字**：只标端点、极值、或主角那一条
+        · **文字永远不穿数据色**（浅色档四个分类色低于 3:1，救济条款＝
+          必须有可见直标或表格视图，所以 .bars/.dev 的值是直标、且每图配
+          details.more>.tbl 表格视图）
+   🔴 三条"先别画图"的判据（最省事也最容易被我忽略的一层）：
+        · 单个当前值 ⇒ 用 .kpi，**不要画一根条的条形图**
+        · 一组很接近的值（128/136/124 这种）⇒ 用 .dev 偏差条以基准为中线，
+          **不要零基线条形** —— 零基线下它们看着一样长，等于没画
+        · 只有一项/一家 ⇒ 用 .kpi，不要画条
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 图表外框：标题 + 结论 + 图 + 表格视图 ───────────────────────── */
+.viz{margin:0}
+.viz .vt{font-weight:700;font-size:14px;color:var(--y-text);margin:0 0 2px}
+/* 一图一结论：图旁边那句话是图的一部分，不是可选装饰 */
+.viz .vs{font-size:12px;color:var(--y-text-3);margin:0 0 12px;line-height:1.6}
+
+/* 图例：>=2 条序列必须有；单条序列**不要**图例（标题已经说了画的是什么） */
+.lg{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;padding:0;list-style:none}
+.lg li,.lg span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--y-text-2)}
+.lg i{width:10px;height:10px;border-radius:3px;flex-shrink:0;display:block}
+.lg i.c1{background:var(--y-cat-1)}.lg i.c2{background:var(--y-cat-2)}
+.lg i.c3{background:var(--y-cat-3)}.lg i.c4{background:var(--y-cat-4)}
+.lg i.c5{background:var(--y-cat-5)}.lg i.c6{background:var(--y-cat-6)}
+.lg i.c7{background:var(--y-cat-7)}.lg i.c8{background:var(--y-cat-8)}
+.lg i.on{background:var(--y-seq-3)}.lg i.dim{background:var(--y-dim)}
+
+/* ── 排序条形（比大小的默认形式：单 hue + emphasis）──────────────────
+   用法：.bars > .brow[.on|.dim] > .bl 标签 + .bt>i 轨道 + .bv 值
+   🔴 默认全部 .dim（灰），**只有主角那一条给 .on** —— 这就是 emphasis，
+      检验单说它是最被低估的形式。给每条上不同颜色＝把长度重复编码成色相，
+      是明确的反模式（"a value-ramp on nominal categories"）。 */
+.bars{display:flex;flex-direction:column}
+.brow{display:grid;grid-template-columns:minmax(88px,132px) minmax(0,1fr) minmax(56px,auto);
+    gap:12px;align-items:center;padding:5px 0;position:relative}
+.brow .bl{font-size:12px;color:var(--y-text-2);overflow-wrap:anywhere;min-width:0}
+/* 轨道：条 <=24px 粗（这里 14px，条形图里给"空气"留够），基线端方角 */
+.bt{height:14px;border-radius:0 var(--y-radius-pill) var(--y-radius-pill) 0;
+    background:var(--y-surface-2);overflow:hidden;min-width:0}
+.bt>i{display:block;height:100%;background:var(--y-dim);
+    border-radius:0 4px 4px 0;   /* 数据端 4px 圆角、基线端方角 */
+    transition:width .35s ease}
+.brow.on .bt>i{background:var(--y-seq-3)}
+.brow.warn .bt>i{background:var(--y-warn)}
+.brow.bad .bt>i{background:var(--y-bad)}
+.brow.ok .bt>i{background:var(--y-ok)}
+/* 值：直标在条尾。列对齐 ⇒ 这里才该用 tabular-nums */
+.brow .bv{font-size:12px;color:var(--y-text);text-align:right;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+.brow.dim .bl,.brow.dim .bv{color:var(--y-text-3)}
+/* 参考线（标准/底线）：1px 实线，比底色深一档，绝不虚线 */
+.bt.ref{position:relative}
+/* 🔴 09-08 看图改：1px + --y-border-strong 在条形轨道上几乎看不见，
+   参考线看不见等于没有参考线。加到 2px 并用文字三级色（仍属"recessive"档）。 */
+.bt.ref::after{content:"";position:absolute;top:-4px;bottom:-4px;width:2px;
+    background:var(--y-text-3);opacity:.55;left:var(--ref,75%);z-index:1}
+
+/* ── 偏差条（值很接近时的正确形式：以基准为中线的 diverging）──────────
+   用法：.dev > .brow > .bl + .dt>i[.pos|.neg] + .bv
+   i 的 width 是"偏离基准多少"，从中线往两边长。 */
+.dev .dt{position:relative;height:14px;background:var(--y-surface-2);border-radius:var(--y-radius-pill);
+    overflow:hidden;min-width:0}
+.dev .dt::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;
+    background:var(--y-border-strong)}
+.dev .dt>i{position:absolute;top:0;bottom:0;display:block}
+/* 偏差恰好为 0（它自己就是基准）：画一个骑在中线上的小方块。
+   不画的话那一行是条空轨道，看着像"这行没数据"—— 09-08 看图时真的第一眼这么读了。 */
+.dev .dt>i.zero{left:calc(50% - 3px);width:6px;background:var(--y-text-3);border-radius:3px}
+.dev .dt>i.pos{left:50%;background:var(--y-div-pos);border-radius:0 4px 4px 0}
+.dev .dt>i.neg{right:50%;background:var(--y-div-neg);border-radius:4px 0 0 4px}
+.dev .bv.pos{color:var(--y-div-pos)}
+.dev .bv.neg{color:var(--y-div-neg)}
+/* 🔴 09-08 看图改：中性的 diverging 蓝/红**不带好坏含义**，可读者一定会把红读成"坏"。
+   采购价那张图里 -5.2%（买便宜了，好事）画成了红、+8.6%（买贵了）画成了蓝 —— 读反了。
+   所以当一侧确实代表"坏"时，改用 status 色（检验单：颜色真的代表好坏时才准用 status 色），
+   由调用方显式声明极性，库不猜。 */
+.dev.polar .dt>i.pos{background:var(--y-bad)}
+.dev.polar .dt>i.neg{background:var(--y-ok)}
+.dev.polar .bv.pos{color:var(--y-bad)}
+.dev.polar .bv.neg{color:var(--y-ok)}
+.dev.polar-rev .dt>i.pos{background:var(--y-ok)}
+.dev.polar-rev .dt>i.neg{background:var(--y-bad)}
+.dev.polar-rev .bv.pos{color:var(--y-ok)}
+.dev.polar-rev .bv.neg{color:var(--y-bad)}
+/* 中线是什么必须写出来，否则"偏离"没有意义 */
+.dev .base{font-size:11px;color:var(--y-text-3);margin:2px 0 8px}
+
+/* ── 哑铃（同一项的前后/两方对比）────────────────────────────────── */
+.dumb .dt{position:relative;height:14px;min-width:0}
+.dumb .dt::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;
+    background:var(--y-border);transform:translateY(-.5px)}
+.dumb .dt .seg{position:absolute;top:50%;height:2px;background:var(--y-seq-2);transform:translateY(-1px)}
+.dumb .dt .pt{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
+    transform:translate(-50%,-50%);border:2px solid var(--y-surface)}  /* 2px surface ring */
+.dumb .dt .pt.a{background:var(--y-seq-4)}
+.dumb .dt .pt.b{background:var(--y-seq-2)}
+
+/* ── 比率对限值（meter）：轨道是同 ramp 的更浅一档，不是灰 ─────────── */
+.meter{height:8px;border-radius:var(--y-radius-pill);background:var(--y-seq-5);overflow:hidden}
+.meter>i{display:block;height:100%;border-radius:var(--y-radius-pill);background:var(--y-seq-3)}
+.meter>i.warn{background:var(--y-warn)}
+.meter>i.bad{background:var(--y-bad)}
+
+/* ── 迷你折线 / 趋势（内联 SVG，模块只给 path 的 d）───────────────── */
+.spark{display:block;width:100%;height:46px;overflow:visible}
+.spark .ln{fill:none;stroke:var(--y-seq-3);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spark .ar{fill:var(--y-seq-3);fill-opacity:.10;stroke:none}   /* 面积＝10% 水洗 */
+.spark .gd{stroke:var(--y-border);stroke-width:1}              /* 网格：1px 实线 */
+.spark .ax{stroke:var(--y-border-strong);stroke-width:1}
+.spark .end{fill:var(--y-seq-3);stroke:var(--y-surface);stroke-width:2}  /* 端点 + surface ring */
+.spark .lb{fill:var(--y-text-3);font-size:10px}                /* 轴文字用文字色，不穿数据色 */
+.spark .dim{stroke:var(--y-dim)}
+
+/* ── 热力格（连续量级：单 hue，2px 底色缝分隔）────────────────────── */
+.heat{display:grid;gap:2px}
+/* 🔴 09-08 看图改：原来是 aspect-ratio:1，7 列摊开后每格变成 130px 的大方块，
+   42 格占掉整页一半高度 —— 热力格的用处是"一眼扫过一片"，格子一大就没那个作用了，
+   而且极浪费纵向空间（那正是"页面很长但信息很少"的另一种形态）。固定成一行 30px。 */
+.heat .c{height:30px;border-radius:3px;background:var(--y-surface-2);position:relative}
+/* 🔴 09-08 看图改：这里原来是 s1→seq-5 反着接的，于是**最小值拿到了最深的颜色**，
+   "颜色越深＝值越高"那句副标题就是在说谎。token 已按"1＝低值端、5＝高值端"排好
+   （浅色档 1 最浅 5 最深；深色档 1 最暗 5 最亮 —— 暗底上"更大＝更亮"），直接对位即可。 */
+.heat .c.s1{background:var(--y-seq-1)}.heat .c.s2{background:var(--y-seq-2)}
+.heat .c.s3{background:var(--y-seq-3)}.heat .c.s4{background:var(--y-seq-4)}
+.heat .c.s5{background:var(--y-seq-5)}
+.heat .hl{font-size:10px;color:var(--y-text-3);text-align:center;
+    display:flex;align-items:center;justify-content:center}
+/* 行标签：换行会把那一行的格子挤歪（真踩到："05 光学性能测试台-05"折成两行）。
+   一行装不下就截断，全名在悬浮和表格视图里都有。 */
+.heat .bl{display:flex;align-items:center;font-size:12px;color:var(--y-text-2);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
+/* 色阶图例。检验单：连续量级的编码**必须**带 scale legend，否则深浅对应什么值只能猜 */
+.scale{display:flex;gap:3px;align-items:center;margin:0 0 10px}
+.scale i{width:24px;height:9px;border-radius:2px;display:block}
+.scale i.s1{background:var(--y-seq-1)}.scale i.s2{background:var(--y-seq-2)}
+.scale i.s3{background:var(--y-seq-3)}.scale i.s4{background:var(--y-seq-4)}
+.scale i.s5{background:var(--y-seq-5)}
+.scale span{font-size:11px;color:var(--y-text-3)}
+
+/* ── hover 提示（图是交互的；但值永远也能从直标/表格视图读到）──────── */
+.tip{position:absolute;z-index:5;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);
+    background:var(--y-text);color:var(--y-bg);font-size:11px;line-height:1.5;
+    padding:6px 9px;border-radius:8px;white-space:nowrap;pointer-events:none;
+    opacity:0;transition:opacity .12s;box-shadow:var(--y-shadow-lg)}
+.brow:hover>.tip,.brow:focus-within>.tip,.tk:hover>.tip{opacity:1}
+
+/* ══ 模块组件：把 09-08 那六份重复的自造样式收敛成一份正本 ══════════
+   🔴 病历：v5 六个模块里各带一份 ~2000 字**一模一样**的 CSS
+      （.contact/.avatar/.kanban/.klane/.tcard/.prio/.barrow/.qa/.principle/.pcard…）。
+      componentCss.ts 开头警告过的那个病，我在 09-08 又原样犯了一遍 ——
+      因为 design-lint 只禁"重定义已有组件"，没禁"自造新组件"，我从那个后门走了出去。
+      所以这批组件必须在正本里，且 lint 已把那个后门关掉（见 server/design-lint.mjs）。 */
+
+/* 垂直堆叠：卡片内部若干区块之间的间距。
+   🔴 为什么要有它：没有它的时候我就去内联 style="margin-top:10px" ——
+   那正是"把自己写样式换个地方继续"，lint 09-08 当场抓到过一次。
+   间距值只在这里定义一次，全站一起改。 */
+.vstack>*+*{margin-top:10px}
+.vstack.tight>*+*{margin-top:6px}
+.vstack.loose>*+*{margin-top:16px}
+
+/* 人/设备条目：头像 + 名字 + 角色 */
+.person{display:flex;gap:12px;align-items:center;min-width:0}
+.person .av{width:42px;height:42px;border-radius:12px;background:var(--y-accent-weak);color:var(--y-accent);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.person .pi{min-width:0}
+.person .pn{font-weight:700;font-size:14px;color:var(--y-text);overflow-wrap:anywhere}
+.person .pr{font-size:12px;color:var(--y-text-3);margin-top:2px}
+
+/* 看板：泳道 + 卡片。列数由模块用 .k3/.k4/.k5 选，不自己写 grid */
+.kanban{display:grid;gap:12px}
+.kanban.k3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.kanban.k4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kanban.k5{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1180px){.kanban.k4,.kanban.k5{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:820px){.kanban,.kanban.k3,.kanban.k4,.kanban.k5{grid-template-columns:minmax(0,1fr)}}
+.lane>h3{font-size:11px;font-weight:700;color:var(--y-text-3);letter-spacing:.6px;text-transform:uppercase;
+    margin:0 0 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lane>h3 .cnt{background:var(--y-surface-2);border-radius:var(--y-radius-pill);padding:1px 8px;
+    font-size:11px;color:var(--y-text-2);font-weight:600}
+.tk{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius-sm);
+    padding:11px 13px;margin-bottom:8px;box-shadow:var(--y-shadow);position:relative}
+.tk .tkid{font-size:11px;color:var(--y-text-3);font-variant-numeric:tabular-nums}
+.tk .tkt{font-weight:700;font-size:13px;color:var(--y-text);margin-top:2px;line-height:1.45}
+.tk .tkm{font-size:11px;color:var(--y-text-3);margin-top:3px}
+.tk .tka{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+
+/* 问答块：一问一答，问题是标题不是正文 */
+.qa{border-top:1px solid var(--y-border);padding:12px 0}
+.qa:first-child{border-top:none;padding-top:0}
+.qa .q{font-weight:700;font-size:13px;color:var(--y-text);line-height:1.5}
+.qa .a{font-size:13px;color:var(--y-text-2);margin-top:5px;line-height:1.75}
+
+/* 编号条目（原则/步骤）*/
+.steps{counter-reset:st;margin:0;padding:0;list-style:none}
+.steps>li{counter-increment:st;position:relative;padding-left:32px;margin-bottom:16px}
+.steps>li::before{content:counter(st);position:absolute;left:0;top:0;width:22px;height:22px;
+    border-radius:7px;background:var(--y-accent);color:var(--y-on-accent);font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center}
+.steps>li>b{display:block;font-size:14px;color:var(--y-text);line-height:1.45}
+.steps>li>p{margin:6px 0 0;font-size:13px;color:var(--y-text-2);line-height:1.8}
+
+/* 对比卡：一个对象 + 若干"本次 vs 基准"的行 */
+.cmp{margin-bottom:12px}
+.cmp .ch{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px}
+.cmp .ch b{font-size:14px;color:var(--y-text);display:block}
+.cmp .ch .cs{font-size:11px;color:var(--y-text-3);margin-top:2px;display:block}
+.cmp .cr{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:12px;color:var(--y-text-2);padding:4px 0}
+.cmp .cr b{color:var(--y-text);font-variant-numeric:tabular-nums}
+.cmp .cr b.pos{color:var(--y-div-pos)}
+.cmp .cr b.neg{color:var(--y-div-neg)}
+.cmp .cn{font-size:12px;color:var(--y-text-2);line-height:1.7;margin-top:9px;
+    padding-top:9px;border-top:1px solid var(--y-border)}
+
+/* ── 📱 手机硬底线（mobile floor）────────────────────────────
+   来源：finesse-skill 的 mobile-floor.md「桌面页在手机上坏掉的六条」，
+   溪午/衔青 2026-09-04 要求"按 skill 优化手机端适配"。
+   只收"会坏掉"的那几条 —— 配色/字体/密度那一层溪午已否决，这里一律不动。
+   测试宽度是钉死的四个：320 · 375 · 414 · 768（不是"把窗口拖窄看着差不多"）。 */
+
+/* M4 · 长词在窄屏必然溢出：连字符复合词（"AI-generated"）和全大写品牌名
+   只有一个断点，display 字号下一个词就比 320px 屏还宽，容器多宽都挡不住。
+   用 anywhere 而不是 break-word —— break-word 不改变内在尺寸贡献，
+   看着不溢出了，轨道还是被那个长词撑着。 */
+h1,h2,h3,h4,.hd h1,.sec h2{overflow-wrap:anywhere;min-width:0}
+
+/* 触摸目标 >=44px。判据用 pointer:coarse 而不只看宽度 —— 平板/触屏笔记本
+   宽度不小但一样是手指点。桌面鼠标那支不动（32px 在鼠标下没问题，
+   而且改桌面观感属于设计层，溪午已否决那一层）。 */
+@media (max-width:820px),(pointer:coarse){
+  .btn,.btn-sm,button.chip{min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  input,textarea,select{min-height:44px}
+  .btn{padding:0 18px}
+  .btn-sm{padding:0 12px}
+}
+
+/* 窄屏留白：34px/36px 的 hero 内边距在 320 屏上只剩 248px 能放内容。 */
+@media (max-width:520px){
+  .hd{padding:22px 18px;margin-bottom:18px}
+  .hd h1{font-size:26px}
+  .kpi{padding:16px 16px}
+  .dec{padding:14px 16px}
+  /* 条形行在窄屏改成两行：标签占满，轨道+值一行 —— 132px 的标签列在 320 屏上
+     只剩 150px 给轨道，条形短到读不出长度差 */
+  .brow{grid-template-columns:minmax(0,1fr) minmax(56px,auto);row-gap:4px}
+  .brow .bl{grid-column:1/-1}
+}</style>
+  <style>
+    html,body{margin:0;min-height:100%;background:var(--y-bg);color:var(--y-text)}
+    body{padding:16px}
+    #app{min-height:100vh}
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+(function(){
+  var Y = {};
+
+  // ── 基础 ──────────────────────────────────────────────────────
+  Y.esc = function(s){ var d=document.createElement("div"); d.textContent = String(s==null?"":s); return d.innerHTML; };
+  Y.num = function(n){ return (typeof n==="number" && isFinite(n)) ? n : 0; };
+  /** 千分位。大数字用比例数字（不等宽）——检验单：等宽让 121 在大字号下显松 */
+  Y.fmt = function(n,digits){
+    var v = Y.num(n), d = digits==null?0:digits;
+    return v.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
+  };
+  Y.wan = function(n,d){ return "¥"+Y.fmt(Y.num(n)/10000, d==null?1:d)+"万"; };
+  Y.sign = function(n,d){ var v=Y.num(n); return (v>0?"+":"")+Y.fmt(v,d==null?1:d); };
+
+  Y.hero = function(o){
+    o = o||{};
+    var chips = (o.chips||[]).map(function(c){ return '<span class="chip">'+Y.esc(c)+'</span>'; }).join("");
+    return '<div class="hd">'+
+      (o.kicker?'<p class="kicker">'+Y.esc(o.kicker)+'</p>':'')+
+      '<h1>'+Y.esc(o.title||"")+'</h1>'+
+      (o.sub?'<p class="sub">'+Y.esc(o.sub)+'</p>':'')+
+      (chips?'<div class="chips">'+chips+'</div>':'')+
+    '</div>';
+  };
+  Y.sec = function(icon,title,desc,act){
+    return '<div class="sec"><div><h2>'+(icon?Y.esc(icon)+' ':'')+Y.esc(title)+'</h2>'+
+      (desc?'<p class="sd">'+Y.esc(desc)+'</p>':'')+'</div>'+
+      (act?'<span class="act">'+Y.esc(act)+'</span>':'')+'</div>';
+  };
+  Y.card = function(inner,cls){ return '<div class="card'+(cls?' '+cls:'')+'">'+inner+'</div>'; };
+  Y.foot = function(t){ return '<p class="foot">'+Y.esc(t)+'</p>'; };
+  Y.badge = function(text,tone){ return '<span class="badge b-'+(tone||"soft")+'">'+Y.esc(text)+'</span>'; };
+
+  /**
+   * KPI 行。检验单 choosing-a-form：**单个当前值就该是统计块，不是一根条的条形图**。
+   * 第一个自动是主 KPI（.kpi.lead）—— 四个等重的 KPI 等于"从来没决定过什么重要"。
+   */
+  Y.kpis = function(items){
+    var h = (items||[]).map(function(it,i){
+      var tone = it.tone ? ' '+it.tone : '';
+      return '<div class="kpi'+(i===0?' lead':'')+'">'+
+        '<div class="k">'+Y.esc(it.k)+'</div>'+
+        '<div class="v'+tone+'">'+Y.esc(it.v)+'</div>'+
+        (it.d?'<div class="d">'+Y.esc(it.d)+'</div>':'')+
+      '</div>';
+    }).join("");
+    return '<div class="kpis">'+h+'</div>';
+  };
+
+  /** 表格视图。检验单：每张图都要有一个"WCAG 干净"的等价物，值永远不被悬浮层独占。 */
+  Y.tableView = function(columns,rows,summary){
+    return '<details class="more"><summary>'+Y.esc(summary||"看数据表")+'</summary>'+
+      '<div class="body tscroll">'+Y.table(columns,rows)+'</div></details>';
+  };
+  Y.table = function(columns,rows){
+    var th = (columns||[]).map(function(c){
+      var right = c && c.n;
+      return '<th'+(right?' class="n"':'')+'>'+Y.esc(c&&c.t!=null?c.t:c)+'</th>';
+    }).join("");
+    var tb = (rows||[]).map(function(r){
+      return '<tr>'+(r||[]).map(function(cell,i){
+        var right = columns && columns[i] && columns[i].n;
+        return '<td'+(right?' class="n"':'')+'>'+Y.esc(cell)+'</td>';
+      }).join("")+'</tr>';
+    }).join("");
+    return '<table class="tbl"><thead><tr>'+th+'</tr></thead><tbody>'+tb+'</tbody></table>';
+  };
+
+  /**
+   * 排序条形 —— 比大小的默认形式。
+   * 检验单落在这里的四条，模块想违反也违反不了：
+   *   ①默认按值降序（比大小就该排好序）
+   *   ②**单 hue + emphasis**：只有 tone 明确给了的那几行上色，其余一律 --y-dim。
+   *     给每行不同颜色＝把长度重复编码成色相，是明确的反模式。
+   *   ③**只有一行数据时不画条**，自动降级成统计块（"the number is the chart"）
+   *   ④超过 6 行时只直标极值和被强调的行，其余交给表格视图（不给每点都标数字）
+   */
+  Y.bars = function(o){
+    o = o||{};
+    var rows = (o.rows||[]).slice();
+    if (!rows.length) return Y.emptyState(o.title, "没有数据");
+    if (rows.length === 1) {
+      // ③ 一根条的条形图 ⇒ 统计块
+      return Y.viz(o.title, o.sub, Y.kpis([{ k: rows[0].label, v: rows[0].text!=null?rows[0].text:Y.fmt(rows[0].value,1), d: o.oneNote }]));
+    }
+    if (o.sort !== false) rows.sort(function(a,b){ return Y.num(b.value)-Y.num(a.value); });
+    var max = Math.max.apply(null, rows.map(function(r){ return Y.num(r.value); }).concat([0])) || 1;
+    var vals = rows.map(function(r){ return Y.num(r.value); });
+    var hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
+    var dense = rows.length > 6;
+    var body = rows.map(function(r){
+      var v = Y.num(r.value);
+      var tone = r.tone || "dim";
+      // ④ 密集时只标极值/被强调的
+      var show = !dense || r.tone || v===hi || v===lo;
+      var txt = r.text!=null ? r.text : Y.fmt(v,1);
+      return '<div class="brow '+tone+'">'+
+        '<span class="bl">'+Y.esc(r.label)+'</span>'+
+        '<span class="bt'+(o.ref!=null?' ref':'')+'"'+(o.ref!=null?' style="--ref:'+(Y.num(o.ref)/max*100)+'%"':'')+'>'+
+          '<i style="width:'+Math.max(0,Math.min(100, v/max*100))+'%"></i></span>'+
+        '<b class="bv">'+(show?Y.esc(txt):'')+'</b>'+
+        (r.tip?'<span class="tip">'+Y.esc(r.tip)+'</span>':'')+
+      '</div>';
+    }).join("");
+    var tv = Y.tableView([o.labelHead||"项目",{t:o.valueHead||"数值",n:1}],
+      rows.map(function(r){ return [r.label, r.text!=null?r.text:Y.fmt(Y.num(r.value),1)]; }));
+    return Y.viz(o.title, o.sub, '<div class="bars">'+body+'</div>'+tv);
+  };
+
+  /**
+   * 偏差条 —— **值很接近时唯一诚实的形式**。
+   * 09-08 那次的具体病症：三家供应商报价 128/136/124 万用零基线条形画，
+   * 三条几乎一样长，等于没画。这里以基准为中线，画的是"偏离基准多少"。
+   * 检构单 choosing-a-form：Above/below a baseline; delta to target ⇒ diverging。
+   */
+  Y.dev = function(o){
+    o = o||{};
+    var rows = (o.rows||[]);
+    if (!rows.length) return Y.emptyState(o.title,"没有数据");
+    // 一行没有"分布"可言 ⇒ 统计块（和 Y.bars 同一条规矩：the number is the chart）
+    if (rows.length === 1) {
+      return Y.viz(o.title, o.sub, Y.kpis([{
+        k: rows[0].label,
+        v: rows[0].text!=null ? rows[0].text : (Y.sign(Y.num(rows[0].delta))+"%"),
+        d: o.oneNote || ("基准：" + (o.base||""))
+      }]));
+    }
+    // 极性：badWhen "pos"＝正偏差是坏事（如采购价高于历史均价）；"neg"＝反之；不给＝中性
+    var polar = o.badWhen === "pos" ? " polar" : (o.badWhen === "neg" ? " polar-rev" : "");
+    var span = Math.max.apply(null, rows.map(function(r){ return Math.abs(Y.num(r.delta)); }).concat([0])) || 1;
+    var body = rows.map(function(r){
+      var d = Y.num(r.delta), w = Math.abs(d)/span*50;   // 一半轨道 = 最大偏差
+      var cls = d === 0 ? "zero" : (d > 0 ? "pos" : "neg");
+      return '<div class="brow">'+
+        '<span class="bl">'+Y.esc(r.label)+'</span>'+
+        '<span class="dt"><i class="'+cls+'" style="width:'+w+'%"></i></span>'+
+        '<b class="bv '+cls+'">'+Y.esc(r.text!=null?r.text:(Y.sign(d)+"%"))+'</b>'+
+        (r.tip?'<span class="tip">'+Y.esc(r.tip)+'</span>':'')+
+      '</div>';
+    }).join("");
+    var tv = Y.tableView([o.labelHead||"项目",{t:o.valueHead||"偏离基准",n:1}],
+      rows.map(function(r){ return [r.label, r.text!=null?r.text:(Y.sign(Y.num(r.delta))+"%")]; }));
+    return Y.viz(o.title, o.sub,
+      '<p class="base">基准：'+Y.esc(o.base||"")+'（中线）</p>'+
+      '<div class="dev'+polar+'">'+body+'</div>'+tv);
+  };
+
+  /**
+   * 迷你折线（趋势）。检验单 marks-and-anatomy：线 2px、端点 >=8px 且带 2px 底色描边、
+   * 面积 10% 水洗、网格 1px 实线。**只标端点**，不给每个点标数字。
+   */
+  Y.spark = function(o){
+    o = o||{};
+    var vals = (o.values||[]).map(Y.num);
+    if (vals.length < 2) return Y.emptyState(o.title, "至少要两个点才画得出趋势");
+    var W=560,H=46,P=3;
+    var max=Math.max.apply(null,vals), min=Math.min.apply(null,vals);
+    var span=(max-min)||1;
+    var x=function(i){ return P + i*(W-2*P)/(vals.length-1); };
+    var y=function(v){ return H-P - (v-min)/span*(H-2*P); };
+    var d=vals.map(function(v,i){ return (i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1); }).join(" ");
+    var area=d+" L"+x(vals.length-1).toFixed(1)+" "+(H-P)+" L"+x(0).toFixed(1)+" "+(H-P)+" Z";
+    var last=vals[vals.length-1];
+    var svg='<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="'+Y.esc(o.title||"趋势")+'">'+
+      '<path class="ar" d="'+area+'"/><path class="ln" d="'+d+'"/>'+
+      '<circle class="end" cx="'+x(vals.length-1).toFixed(1)+'" cy="'+y(last).toFixed(1)+'" r="4"/></svg>';
+    var ends = '<div class="row between"><span class="muted">'+Y.esc((o.labels||[])[0]||"")+'</span>'+
+      '<span class="small">'+Y.esc((o.labels||[])[o.labels.length-1]||"")+'：<b>'+Y.esc(o.endText!=null?o.endText:Y.fmt(last,1))+'</b></span></div>';
+    var tv = Y.tableView([o.labelHead||"时间",{t:o.valueHead||"数值",n:1}],
+      vals.map(function(v,i){ return [(o.labels||[])[i]||("#"+(i+1)), Y.fmt(v,1)]; }));
+    return Y.viz(o.title, o.sub, svg+ends+tv);
+  };
+
+  /** 热力格（连续量级：单 hue，2px 底色缝分隔）。检验单：Compare magnitude on a grid ⇒ heatmap。 */
+  Y.heat = function(o){
+    o=o||{};
+    var rows=o.rows||[], cols=o.cols||[], cells=o.cells||[];
+    if(!rows.length||!cols.length) return Y.emptyState(o.title,"没有数据");
+    var flat=[]; cells.forEach(function(r){ (r||[]).forEach(function(v){ flat.push(Y.num(v)); }); });
+    // 🔴 09-08 看图改：原来 min 强行 concat([0])，数据在 73~97 的窄带里时
+    //    五档色阶全被挤到高端 ⇒ 42 个格子看着一个色，热力格白画。
+    //    热力格是**颜色编码**不是长度编码，不需要零基线；范围写在图例上（见下）。
+    var max=Math.max.apply(null,flat), min=Math.min.apply(null,flat);
+    if (!isFinite(max)) { max=1; min=0; }
+    var step=function(v){ var t=(Y.num(v)-min)/((max-min)||1); return "s"+Math.max(1,Math.min(5,Math.ceil(t*5)||1)); };
+    var head='<div class="heat" style="grid-template-columns:132px repeat('+cols.length+',minmax(0,1fr))">'+
+      '<span></span>'+cols.map(function(c){ return '<span class="hl">'+Y.esc(c)+'</span>'; }).join("");
+    var body=rows.map(function(rname,ri){
+      return '<span class="bl small">'+Y.esc(rname)+'</span>'+
+        cols.map(function(_,ci){
+          var v=(cells[ri]||[])[ci];
+          return '<span class="c '+step(v)+'"><span class="tip">'+Y.esc(rname+" · "+cols[ci]+"："+Y.fmt(v,1))+'</span></span>';
+        }).join("");
+    }).join("");
+    var tv=Y.tableView([o.labelHead||"项目"].concat(cols.map(function(c){ return {t:c,n:1}; })),
+      rows.map(function(rname,ri){ return [rname].concat(cols.map(function(_,ci){ return Y.fmt((cells[ri]||[])[ci],1); })); }));
+    var lo=Y.fmt(min,1), hi=Y.fmt(max,1);
+    var legend='<div class="scale"><span>'+Y.esc((o.unit?lo+o.unit:lo))+'</span>'+
+      '<i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i>'+
+      '<span>'+Y.esc((o.unit?hi+o.unit:hi))+'</span></div>';
+    return Y.viz(o.title,o.sub,legend+head+body+'</div>'+tv);
+  };
+
+  /** 比率对限值。检验单：A single ratio against a limit ⇒ meter（轨道用同 ramp 更浅一档，不是灰）。 */
+  Y.meter = function(v,max,tone){
+    var p=Math.max(0,Math.min(100, Y.num(v)/(Y.num(max)||1)*100));
+    return '<div class="meter"><i'+(tone?' class="'+tone+'"':'')+' style="width:'+p+'%"></i></div>';
+  };
+
+  /** 图表外框：标题 + **一句结论** + 图。结论不是可选装饰——一图一结论。 */
+  Y.viz = function(title,sub,inner){
+    return '<div class="viz">'+
+      (title?'<p class="vt">'+Y.esc(title)+'</p>':'')+
+      (sub?'<p class="vs">'+Y.esc(sub)+'</p>':'')+inner+'</div>';
+  };
+  Y.legend = function(items){
+    return '<ul class="lg">'+(items||[]).map(function(it){
+      return '<li><i class="'+(it.cls||"on")+'"></i>'+Y.esc(it.t)+'</li>';
+    }).join("")+'</ul>';
+  };
+  Y.emptyState = function(title,msg,icon){
+    return '<div class="state"><div class="ic">'+(icon||"—")+'</div><h3>'+Y.esc(title||"暂无数据")+'</h3>'+
+      '<p>'+Y.esc(msg||"")+'</p></div>';
+  };
+  Y.errorState = function(msg){
+    return '<div class="state err"><div class="ic">!</div><h3>这块没加载出来</h3><p>'+Y.esc(msg||"")+'</p></div>';
+  };
+  Y.skeleton = function(n){
+    var one='<div class="sk"><div class="ln" style="width:38%"></div><div class="ln" style="width:72%"></div></div>';
+    return '<div class="skel">'+new Array(n||3).fill(one).join("")+'</div>';
+  };
+
+  // ── 模块组件（对应 componentCss 里收敛出来的那批）─────────────
+  Y.person = function(o){
+    o=o||{};
+    var ini = o.initial || String(o.name||"?").slice(0,2);
+    return '<div class="person"><div class="av">'+Y.esc(ini)+'</div><div class="pi">'+
+      '<div class="pn">'+Y.esc(o.name)+'</div>'+
+      (o.role?'<div class="pr">'+Y.esc(o.role)+'</div>':'')+'</div></div>';
+  };
+  Y.kanban = function(lanes,cols){
+    var n = cols || Math.min(5, Math.max(3, (lanes||[]).length));
+    return '<div class="kanban k'+n+'">'+(lanes||[]).map(function(l){
+      return '<div class="lane"><h3>'+Y.esc(l.title)+'<span class="cnt">'+((l.cards||[]).length)+'</span></h3>'+
+        ((l.cards||[]).length ? (l.cards||[]).map(function(c){
+          return '<div class="tk">'+
+            (c.id?'<div class="tkid">'+Y.esc(c.id)+'</div>':'')+
+            '<div class="tkt">'+Y.esc(c.title)+'</div>'+
+            (c.meta?'<div class="tkm">'+Y.esc(c.meta)+'</div>':'')+
+            (c.badges?'<div class="tka">'+c.badges.map(function(b){ return Y.badge(b.t,b.tone); }).join("")+'</div>':'')+
+            (c.actions?'<div class="tka">'+c.actions.map(function(a){
+              var at=""; var dd=a.attrs||{};
+              for (var k in dd) if (Object.prototype.hasOwnProperty.call(dd,k)) at+=' '+k+'="'+Y.esc(dd[k])+'"';
+              return '<button class="btn btn-sm '+(a.tone||"btn-o")+'"'+at+(a.disabled?' disabled':'')+'>'+Y.esc(a.label)+'</button>';
+            }).join("")+'</div>':'')+
+            (c.tip?'<span class="tip">'+Y.esc(c.tip)+'</span>':'')+
+          '</div>';
+        }).join("") : '<div class="empty">这条泳道是空的</div>')+
+      '</div>';
+    }).join("")+'</div>';
+  };
+  Y.qa = function(items){
+    return (items||[]).map(function(it){
+      return '<div class="qa"><div class="q">'+Y.esc(it.q)+'</div><div class="a">'+Y.esc(it.a)+'</div></div>';
+    }).join("");
+  };
+  Y.steps = function(items){
+    return '<ol class="steps">'+(items||[]).map(function(it){
+      return '<li><b>'+Y.esc(it.t)+'</b><p>'+Y.esc(it.p)+'</p></li>';
+    }).join("")+'</ol>';
+  };
+  Y.cmp = function(o){
+    o=o||{};
+    var rows=(o.rows||[]).map(function(r){
+      return '<div class="cr"><span>'+Y.esc(r.k)+'</span><b'+(r.tone?' class="'+r.tone+'"':'')+'>'+Y.esc(r.v)+'</b></div>';
+    }).join("");
+    return '<div class="card cmp"><div class="ch"><div><b>'+Y.esc(o.title)+'</b>'+
+      (o.sub?'<span class="cs">'+Y.esc(o.sub)+'</span>':'')+'</div>'+
+      (o.badge?Y.badge(o.badge.t,o.badge.tone):'')+'</div>'+rows+
+      (o.inner||'')+
+      (o.note?'<p class="cn">'+Y.esc(o.note)+'</p>':'')+'</div>';
+  };
+  Y.grid = function(items,cols){
+    return '<div class="grid g'+(cols||2)+'">'+(items||[]).join("")+'</div>';
+  };
+  /** 垂直堆叠。模块不许内联 margin（lint 会报），间距归 componentCss 的 .vstack 管 */
+  Y.stack = function(items,density){
+    return '<div class="vstack'+(density?' '+density:'')+'">'+(items||[]).join("")+'</div>';
+  };
+  Y.wrap = function(inner){ return '<div class="wrap">'+inner+'</div>'; };
+
+  window.Y = Y;
+})();
+</script>
+  <script>
+/* 淡紫色主题（人事 Agent）——覆盖平台 --y-* 设计变量，见 hr-theme.mjs */
+(function(){
+  try{
+    var DARK = {"--y-bg":"rgb(22,20,31)","--y-surface":"rgb(30,27,43)","--y-surface-2":"rgb(38,34,52)","--y-text":"rgb(236,234,246)","--y-text-2":"rgb(185,179,208)","--y-text-3":"rgb(143,137,168)","--y-border":"rgba(255,255,255,.10)","--y-border-strong":"rgba(255,255,255,.22)","--y-accent":"rgb(169,155,245)","--y-accent-weak":"rgba(124,107,240,.18)","--y-on-accent":"rgb(20,17,31)","--y-info":"rgb(169,155,245)","--y-info-weak":"rgba(124,107,240,.18)","--y-glare":"rgba(255,255,255,.06)","--y-dim":"rgb(74,68,112)","--y-seq-1":"rgb(51,42,99)","--y-seq-2":"rgb(74,58,184)","--y-seq-3":"rgb(127,108,235)","--y-seq-4":"rgb(157,139,243)","--y-seq-5":"rgb(195,179,244)","--y-div-pos":"rgb(139,123,240)","--y-div-neg":"rgb(224,138,143)","--y-div-mid":"rgb(58,53,80)","--y-cat-1":"rgb(169,155,245)","--y-cat-2":"rgb(232,161,132)","--y-cat-3":"rgb(95,201,179)","--y-cat-4":"rgb(230,191,114)","--y-cat-5":"rgb(221,148,200)","--y-cat-6":"rgb(139,123,240)","--y-cat-7":"rgb(195,179,244)","--y-cat-8":"rgb(224,138,143)","--y-scene-contacts":"rgb(169,155,245)","--y-scene-contacts-weak":"rgba(124,107,240,.18)","--y-scene-contacts-on":"rgb(20,17,31)","--y-scene-archive":"rgb(195,179,244)","--y-scene-archive-weak":"rgba(150,130,245,.16)","--y-scene-archive-on":"rgb(20,17,31)","--y-scene-ticket":"rgb(179,164,240)","--y-scene-ticket-weak":"rgba(140,120,240,.16)","--y-scene-ticket-on":"rgb(20,17,31)","--y-scene-cost":"rgb(139,123,240)","--y-scene-cost-weak":"rgba(124,107,240,.16)","--y-scene-cost-on":"rgb(20,17,31)","--y-scene-principle":"rgb(201,187,247)","--y-scene-principle-weak":"rgba(160,140,245,.16)","--y-scene-principle-on":"rgb(20,17,31)","--y-shadow":"0 2px 14px rgba(0,0,0,.40)","--y-shadow-lg":"0 14px 34px rgba(0,0,0,.50)","--hr-hero":"linear-gradient(115deg,rgb(74,58,184) 0%,rgb(90,73,216) 52%,rgb(127,108,235) 100%)","--hr-scheme":"dark"}, LIGHT = {"--y-bg":"rgb(245,244,251)","--y-surface":"rgb(255,255,255)","--y-surface-2":"rgb(244,242,252)","--y-text":"rgb(43,42,61)","--y-text-2":"rgb(95,90,122)","--y-text-3":"rgb(139,134,163)","--y-border":"rgb(236,232,248)","--y-border-strong":"rgb(221,212,248)","--y-accent":"rgb(108,92,231)","--y-accent-weak":"rgb(239,234,255)","--y-on-accent":"rgb(255,255,255)","--y-info":"rgb(108,92,231)","--y-info-weak":"rgb(239,234,255)","--y-glare":"rgba(255,255,255,.22)","--y-dim":"rgb(207,199,234)","--y-seq-1":"rgb(228,220,251)","--y-seq-2":"rgb(195,179,244)","--y-seq-3":"rgb(108,92,231)","--y-seq-4":"rgb(90,73,216)","--y-seq-5":"rgb(74,58,184)","--y-div-pos":"rgb(108,92,231)","--y-div-neg":"rgb(217,115,122)","--y-div-mid":"rgb(230,225,244)","--y-cat-1":"rgb(108,92,231)","--y-cat-2":"rgb(224,138,106)","--y-cat-3":"rgb(44,165,141)","--y-cat-4":"rgb(217,164,65)","--y-cat-5":"rgb(201,111,176)","--y-cat-6":"rgb(74,58,184)","--y-cat-7":"rgb(139,123,240)","--y-cat-8":"rgb(217,115,122)","--y-scene-contacts":"rgb(108,92,231)","--y-scene-contacts-weak":"rgb(239,234,255)","--y-scene-contacts-on":"rgb(255,255,255)","--y-scene-archive":"rgb(139,123,240)","--y-scene-archive-weak":"rgb(241,237,254)","--y-scene-archive-on":"rgb(255,255,255)","--y-scene-ticket":"rgb(127,108,235)","--y-scene-ticket-weak":"rgb(241,237,254)","--y-scene-ticket-on":"rgb(255,255,255)","--y-scene-cost":"rgb(83,68,201)","--y-scene-cost-weak":"rgb(236,231,253)","--y-scene-cost-on":"rgb(255,255,255)","--y-scene-principle":"rgb(157,139,243)","--y-scene-principle-weak":"rgb(243,240,254)","--y-scene-principle-on":"rgb(255,255,255)","--y-shadow":"0 2px 14px rgba(108,92,231,.07)","--y-shadow-lg":"0 10px 30px rgba(108,92,231,.14)","--hr-hero":"linear-gradient(115deg,rgb(108,92,231) 0%,rgb(127,108,235) 52%,rgb(157,139,243) 100%)","--hr-scheme":"light"};
+    var dark = false;
+    try { dark = /dark/i.test(getComputedStyle(document.documentElement).colorScheme || ""); } catch(e){}
+    var P = dark ? DARK : LIGHT, s = document.documentElement.style, k;
+    for (k in P) s.setProperty(k, P[k]);
+    s.setProperty("color-scheme", P["--hr-scheme"]);
+  }catch(e){}
+})();
+
+
+(function(){
+  try{
+    var st = document.createElement("style");
+    st.setAttribute("data-hr-theme", "1");
+    st.textContent = "\n.hd{background:var(--hr-hero) !important;\n    box-shadow:0 12px 34px rgba(108,92,231,.20)}\n.hd::after{background:radial-gradient(circle at center,rgba(255,255,255,.22) 0%,transparent 70%)}\n.hd .kicker{color:rgba(255,255,255,.82)}\n.hd h1{color:rgb(255,255,255)}\n.hd p.sub{color:rgba(255,255,255,.90)}\n.hd .chips .chip{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.32);color:rgb(255,255,255)}\n\n/* 首页 · 中际旭创内审试点组织架构 */\n.hr-org-scroll{overflow-x:auto;padding:2px 2px 10px}\n.hr-org{min-width:980px;max-width:1180px;margin:0 auto;padding:4px 6px 0}\n.hr-org-node{background:var(--y-surface);border:1px solid var(--y-border-strong);\n  border-radius:var(--y-radius);box-shadow:var(--y-shadow);padding:13px 15px}\n.hr-org-level{width:350px;margin:0 auto;box-sizing:border-box}\n.hr-org-role{text-align:center;color:var(--y-accent);font-size:14px;font-weight:700;margin-bottom:10px}\n.hr-org-pair{display:grid;grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr);gap:7px;align-items:center}\n.hr-org-person{background:var(--y-surface-2);border-radius:10px;padding:9px 10px;text-align:center;min-width:0}\n.hr-org-person.ai{background:var(--y-accent-weak)}\n.hr-org-person .cap{display:block;color:var(--y-text-3);font-size:10px;line-height:1.2;margin-bottom:3px}\n.hr-org-person .nm{display:block;color:var(--y-text);font-size:14px;font-weight:700;line-height:1.35;\n  overflow-wrap:anywhere}\n.hr-org-person.ai .nm{color:var(--y-accent)}\n.hr-org-link{text-align:center;color:var(--y-accent);font-size:18px;font-weight:700}\n.hr-org-connector{width:2px;height:24px;background:var(--y-border-strong);margin:0 auto}\n.hr-org-branches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;\n  padding-top:22px;position:relative}\n.hr-org-branches::before{content:\"\";position:absolute;top:0;left:12.5%;right:12.5%;\n  height:2px;background:var(--y-border-strong)}\n.hr-org-leg{position:relative;min-width:0}\n.hr-org-leg::before{content:\"\";position:absolute;top:-22px;left:50%;width:2px;height:22px;\n  background:var(--y-border-strong)}\n.hr-org-auditor{height:100%;display:flex;flex-direction:column}\n.hr-org-auditor>.hr-org-role{margin-bottom:9px}\n.hr-org-auditor .hr-org-person{padding:8px 7px}\n.hr-org-ai-title{border-top:1px solid var(--y-border);margin-top:12px;padding-top:10px;\n  color:var(--y-text-2);font-size:11px;font-weight:700}\n.hr-org-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}\n.hr-org-chip{border:1px solid var(--y-border-strong);background:var(--y-surface);\n  border-radius:8px;padding:5px 8px;color:var(--y-text-2);font-size:11px;line-height:1.2;white-space:nowrap}\n.hr-org-foot{margin-top:20px;border-radius:10px;background:var(--y-accent-weak);\n  color:var(--y-accent);padding:9px 14px;text-align:center;font-size:12px;font-weight:600}\n\n/* 首页 · Agent 状态分布 */\n.hr-status-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:4px}\n.hr-status{display:flex;gap:11px;align-items:center;min-width:0;background:var(--y-surface);\n  border:1px solid var(--y-border);border-radius:var(--y-radius);padding:16px;\n  box-shadow:var(--y-shadow)}\n.hr-status-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;\n  justify-content:center;flex:0 0 38px;font-size:12px;font-weight:800;background:var(--y-accent-weak);\n  color:var(--y-accent)}\n.hr-status.run .hr-status-icon{background:var(--y-ok-weak);color:var(--y-ok)}\n.hr-status.training .hr-status-icon{background:var(--y-warn-weak);color:var(--y-warn)}\n.hr-status.error .hr-status-icon{background:var(--y-bad-weak);color:var(--y-bad)}\n.hr-status.paused .hr-status-icon{background:var(--y-border);color:var(--y-text-3)}\n.hr-status-k{font-size:11px;color:var(--y-text-3);font-weight:600;white-space:nowrap}\n.hr-status-v{font-size:24px;line-height:1.15;color:var(--y-text);font-weight:700;margin-top:2px}\n\n/* HR Agent 管理台 · 一级看板 */\n.hr-page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}\n.hr-scope-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--y-accent-weak);\n  border:1px solid var(--y-border-strong);border-radius:var(--y-radius);padding:13px 15px;margin-bottom:12px}\n.hr-scope-banner b{color:var(--y-accent);font-size:13px}\n.hr-scope-banner span{color:var(--y-text-2);font-size:12px;line-height:1.6}\n.hr-system-summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--y-surface);\n  border:1px solid var(--y-border);border-radius:var(--y-radius);padding:12px 14px;margin-bottom:10px;\n  box-shadow:var(--y-shadow)}\n.hr-system-summary b{font-size:14px;color:var(--y-text)}\n.hr-system-summary span{font-size:12px;color:var(--y-text-2)}\n.hr-system-summary i{margin-left:auto;font-size:11px;color:var(--y-text-3);font-style:normal}\n.hr-link-btn{border:1px solid var(--y-border-strong);background:var(--y-surface);color:var(--y-accent);\n  border-radius:var(--y-radius-sm);padding:7px 11px;font:inherit;font-size:12px;font-weight:700;\n  cursor:pointer;white-space:nowrap}\n.hr-link-btn:hover{background:var(--y-accent-weak)}\n.hr-management-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}\n.hr-management-card{text-align:left;width:100%;background:var(--y-surface);border:1px solid var(--y-border);\n  border-radius:var(--y-radius);padding:15px;box-shadow:var(--y-shadow);font:inherit;cursor:pointer;\n  color:var(--y-text);min-width:0;transition:transform .15s,border-color .15s,box-shadow .15s}\n.hr-management-card:hover{transform:translateY(-1px);border-color:var(--y-border-strong);box-shadow:var(--y-shadow-lg)}\n.hr-management-top{display:flex;align-items:center;gap:10px}\n.hr-management-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;\n  justify-content:center;background:var(--y-accent-weak);color:var(--y-accent);font-size:13px;font-weight:800;flex:0 0 36px}\n.hr-management-card.orange .hr-management-icon{background:var(--y-warn-weak);color:var(--y-warn)}\n.hr-management-card.green .hr-management-icon{background:var(--y-ok-weak);color:var(--y-ok)}\n.hr-management-card.red .hr-management-icon{background:var(--y-bad-weak);color:var(--y-bad)}\n.hr-management-title{font-size:14px;font-weight:800;color:var(--y-text)}\n.hr-management-desc{font-size:12px;color:var(--y-text-2);line-height:1.6;margin-top:10px;min-height:38px}\n.hr-permission-mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}\n.hr-permission-mini span{display:flex;align-items:center;gap:5px;min-width:0;background:var(--y-surface-2);\n  border-radius:8px;padding:6px 7px;color:var(--y-text-2);font-size:10px;font-weight:700;\n  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.hr-permission-mini b{color:var(--y-accent);font-size:9px;flex:0 0 auto}\n.hr-life-mini{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;margin-top:10px;\n  padding:8px;border-radius:var(--y-radius-sm);background:var(--y-surface-2)}\n.hr-life-mini span{font-size:11px;font-weight:800;color:var(--y-accent)}\n.hr-life-mini i{font-style:normal;font-size:10px;color:var(--y-text-3)}\n.hr-management-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;\n  padding-top:10px;border-top:1px solid var(--y-border);font-size:11px;color:var(--y-text-3);flex-wrap:wrap}\n.hr-management-meta b{color:var(--y-accent);font-size:11px}\n.hr-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}\n.hr-profile-grid.samples{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:12px}\n.hr-profile-card{text-align:left;background:var(--y-surface);border:1px solid var(--y-border);\n  border-radius:var(--y-radius);padding:14px;box-shadow:var(--y-shadow);font:inherit;color:var(--y-text);\n  cursor:pointer;min-width:0}\n.hr-profile-card:hover{border-color:var(--y-border-strong);box-shadow:var(--y-shadow-lg)}\n.hr-profile-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}\n.hr-profile-name{font-size:14px;font-weight:800;color:var(--y-text)}\n.hr-profile-business{font-size:11px;color:var(--y-text-3);margin-top:2px}\n.hr-profile-grid-inner{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:12px}\n.hr-profile-field .k{font-size:10px;color:var(--y-text-3);font-weight:700}\n.hr-profile-field .v{font-size:12px;color:var(--y-text-2);line-height:1.5;margin-top:2px;overflow-wrap:anywhere}\n.hr-panel{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);\n  padding:16px;box-shadow:var(--y-shadow);min-width:0}\n.hr-panel+.hr-panel{margin-top:10px}\n.hr-panel .hr-link-btn{margin-top:12px}\n.hr-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:10px}\n.hr-summary-grid.compact{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}\n.hr-summary-item{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius-sm);\n  padding:11px 12px;min-width:0}\n.hr-summary-item .k{font-size:10px;color:var(--y-text-3);font-weight:700}\n.hr-summary-item .v{font-size:20px;line-height:1.2;color:var(--y-text);font-weight:800;margin-top:2px}\n.hr-summary-item .d{font-size:10px;color:var(--y-text-3);margin-top:2px}\n.hr-panel-title{font-size:14px;font-weight:800;color:var(--y-text)}\n.hr-panel-sub{font-size:11px;color:var(--y-text-3);margin-top:3px;line-height:1.5}\n.hr-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}\n.hr-three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}\n.hr-list{display:flex;flex-direction:column;gap:8px}\n.hr-list-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;\n  padding:10px 0;border-top:1px solid var(--y-border)}\n.hr-list-row:first-child{border-top:none;padding-top:0}\n.hr-list-row:last-child{padding-bottom:0}\n.hr-list-main{min-width:0}\n.hr-list-title{font-size:13px;color:var(--y-text);font-weight:700;overflow-wrap:anywhere}\n.hr-list-sub{font-size:11px;color:var(--y-text-3);line-height:1.5;margin-top:2px}\n.hr-rank-list{display:flex;flex-direction:column;gap:8px}\n.hr-rank-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--y-border)}\n.hr-rank-row:first-child{border-top:none;padding-top:0}\n.hr-rank-no{width:28px;height:28px;border-radius:9px;background:var(--y-accent-weak);color:var(--y-accent);\n  display:grid;place-items:center;flex:0 0 28px;font-size:12px;font-weight:900}\n.hr-rank-name{font-size:15px;font-weight:900;color:var(--y-text)}\n.hr-tag{display:inline-block;padding:3px 8px;border-radius:var(--y-radius-pill);background:var(--y-accent-weak);\n  color:var(--y-accent);font-size:10px;font-weight:700;white-space:nowrap}\n.hr-tag.ok{background:var(--y-ok-weak);color:var(--y-ok)}\n.hr-tag.warn{background:var(--y-warn-weak);color:var(--y-warn)}\n.hr-tag.bad{background:var(--y-bad-weak);color:var(--y-bad)}\n.hr-tag.muted{background:var(--y-border);color:var(--y-text-3)}\n.hr-table-btn{border:none;background:none;color:var(--y-accent);font:inherit;font-size:12px;\n  font-weight:700;cursor:pointer;padding:0;white-space:nowrap}\n.hr-cap-row{margin-top:10px}\n.hr-cap-top{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--y-text-2)}\n.hr-cap-top b{color:var(--y-text);font-variant-numeric:tabular-nums}\n.hr-cap-track{height:8px;border-radius:var(--y-radius-pill);background:var(--y-surface-2);overflow:hidden;margin-top:5px}\n.hr-cap-track i{display:block;height:100%;border-radius:var(--y-radius-pill);background:var(--y-accent)}\n.hr-score{font-size:26px;line-height:1.1;font-weight:800;color:var(--y-text)}\n.hr-score small{font-size:11px;color:var(--y-text-3);font-weight:600;margin-left:3px}\n.hr-grade-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}\n.hr-grade-item{background:var(--y-surface-2);border-radius:var(--y-radius-sm);padding:11px;text-align:center}\n.hr-grade-item b{display:block;font-size:24px;line-height:1.1;color:var(--y-accent)}\n.hr-grade-item span{display:block;font-size:12px;color:var(--y-text);font-weight:700;margin-top:3px}\n.hr-grade-item small{display:block;font-size:10px;color:var(--y-text-3);margin-top:2px}\n.hr-performance-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:10px;margin-top:10px}\n.hr-radar-chart{display:flex;flex-direction:column;align-items:center}\n.hr-radar-holder{display:flex;justify-content:center}\n.hr-radar-title{align-self:stretch;font-size:14px;color:var(--y-text);font-weight:800}\n.hr-radar-title small{font-size:10px;color:var(--y-text-3);font-weight:500;margin-left:5px}\n.hr-radar-chart svg{display:block;width:min(100%,390px);height:auto;margin:8px auto 0}\n.hr-radar-legend{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--y-text-2)}\n.hr-radar-legend span{display:inline-flex;align-items:center;gap:6px}\n.hr-radar-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}\n.hr-radar-legend i.cur{background:var(--y-accent)}\n.hr-radar-legend i.prev{background:var(--y-cat-3)}\n.hr-radar-legend b{color:var(--y-text)}\n.hr-metric-table{margin-top:12px}\n.hr-metric-row{display:grid;grid-template-columns:minmax(92px,1.25fr) repeat(3,minmax(58px,.75fr));gap:8px;\n  align-items:center;border-top:1px solid var(--y-border);padding:10px 0;font-size:12px;color:var(--y-text-2)}\n.hr-metric-row:first-child{border-top:none}\n.hr-metric-row.head{padding-top:0;color:var(--y-text-3);font-size:10px;font-weight:700}\n.hr-metric-row>span:last-child{text-align:right}\n.hr-metric-row.head>span:not(:first-child),.hr-metric-row>span:nth-child(n+2){text-align:right}\n.hr-metric-value{font-weight:800}\n.hr-metric-value.ok{color:var(--y-ok)}\n.hr-metric-value.warn{color:var(--y-warn)}\n.hr-exit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}\n.hr-exit-card{background:var(--y-surface-2);border:1px solid var(--y-border);border-radius:var(--y-radius-sm);padding:13px}\n.hr-exit-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}\n.hr-check-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;padding-top:11px;border-top:1px solid var(--y-border)}\n.hr-check{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--y-text-2);\n  background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius-pill);padding:5px 8px}\n.hr-check b{color:var(--y-ok);font-size:12px}\n.hr-drawer{position:fixed;inset:0;background:rgba(26,22,48,.32);z-index:1200;display:none}\n.hr-drawer.open{display:block}\n.hr-drawer-panel{position:absolute;top:0;right:0;bottom:0;width:min(620px,92vw);overflow:auto;\n  background:var(--y-bg);box-shadow:-18px 0 50px rgba(28,22,60,.20);padding:20px}\n.hr-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;\n  padding-bottom:14px;border-bottom:1px solid var(--y-border)}\n.hr-drawer-kicker{font-size:11px;color:var(--y-accent);font-weight:800;letter-spacing:.3px}\n.hr-drawer-title{font-size:22px;line-height:1.3;font-weight:800;color:var(--y-text);margin-top:3px}\n.hr-drawer-close{border:1px solid var(--y-border-strong);background:var(--y-surface);color:var(--y-text-2);\n  width:36px;height:36px;border-radius:50%;font-size:18px;line-height:1;cursor:pointer;flex:0 0 36px}\n.hr-drawer-lead{font-size:13px;color:var(--y-text-2);line-height:1.75;margin:14px 0}\n.hr-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}\n.hr-detail-stat{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius-sm);\n  padding:11px 12px}\n.hr-detail-stat .k{font-size:10px;color:var(--y-text-3);font-weight:700}\n.hr-detail-stat .v{font-size:17px;color:var(--y-text);font-weight:800;margin-top:2px}\n.hr-detail-block{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius-sm);\n  padding:13px 14px;margin-top:10px}\n.hr-detail-block h3{font-size:13px;margin:0 0 8px;color:var(--y-text)}\n.hr-detail-block ul,.hr-detail-block ol{margin:0;padding-left:18px;color:var(--y-text-2);font-size:12px;line-height:1.8}\n.hr-permission-flow{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap}\n.hr-permission-flow span{flex:1 1 105px;min-width:0;background:var(--y-surface-2);border-radius:8px;padding:9px 10px;\n  color:var(--y-text-3);font-size:10px;line-height:1.5}\n.hr-permission-flow span b{display:block;color:var(--y-accent);font-size:13px;margin-bottom:2px}\n.hr-permission-flow i{display:flex;align-items:center;color:var(--y-accent);font-style:normal}\n.hr-permission-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}\n.hr-permission-item{display:flex;gap:9px;align-items:flex-start;background:var(--y-surface-2);\n  border-radius:var(--y-radius-sm);padding:10px}\n.hr-permission-item>b{width:26px;height:26px;border-radius:50%;background:var(--y-accent);color:var(--y-on-accent);\n  display:grid;place-items:center;flex:0 0 26px;font-size:9px}\n.hr-file-row{display:flex;align-items:center;justify-content:space-between;gap:10px;\n  padding:9px 0;border-top:1px solid var(--y-border)}\n.hr-file-row:first-child{border-top:none;padding-top:0}\n.hr-file-row a{font-size:12px;font-weight:700;text-decoration:none}\n.hr-file-row .meta{font-size:10px;color:var(--y-text-3);margin-top:2px}\n.hr-file-source{font-size:10px;color:var(--y-text-3);line-height:1.5;margin-top:10px}\nbody.hr-modal-open{overflow:hidden}\n\n";
+    (document.head || document.documentElement).appendChild(st);
+  }catch(e){}
+})();
+
+
+(function(){
+  try{
+    var st = document.createElement("style");
+    st.setAttribute("data-hr-theme", "2");
+    st.textContent = "/* 员工 Agent · 单个数字员工深度主页 */\n.hr-employee-badge{display:flex;gap:16px;align-items:flex-start;background:var(--y-surface);\n  border:1px solid var(--y-border);border-radius:var(--y-radius);padding:18px;\n  box-shadow:var(--y-shadow);min-width:0}\n.hr-emp-avatar{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;flex:0 0 64px;\n  background:var(--hr-hero);color:rgb(255,255,255);font-size:25px;font-weight:900;box-shadow:0 8px 20px rgba(108,92,231,.22)}\n.hr-emp-main{min-width:0;flex:1}\n.hr-emp-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--y-text);\n  font-size:24px;line-height:1.25;font-weight:900}\n.hr-emp-intro{color:var(--y-text-2);font-size:13px;line-height:1.7;margin-top:7px;max-width:860px}\n.hr-emp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}\n.hr-emp-meta span{display:flex;align-items:baseline;gap:6px;min-width:0;background:var(--y-surface-2);\n  border-radius:9px;padding:8px 10px;color:var(--y-text-2);font-size:11px;line-height:1.45;\n  overflow-wrap:anywhere}\n.hr-emp-meta b{color:var(--y-text-3);font-size:9px;font-weight:800;white-space:nowrap}\n.hr-emp-linkbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px;\n  padding:11px 12px;border:1px solid var(--y-border-strong);border-radius:var(--y-radius);\n  background:var(--y-accent-weak)}\n.hr-emp-linkbar b{margin-right:auto;color:var(--y-accent);font-size:12px}\n.hr-emp-linkbar button{border:1px solid var(--y-border-strong);background:var(--y-surface);color:var(--y-text-2);\n  border-radius:var(--y-radius-sm);padding:7px 10px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}\n.hr-emp-linkbar button:hover{color:var(--y-accent)}\n.hr-kpi-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:12px}\n.hr-kpi-chips span{background:var(--y-surface-2);border-radius:9px;padding:9px;text-align:center;\n  color:var(--y-text-2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.hr-kpi-chips b{display:block;color:var(--y-accent);font-size:15px;margin-bottom:2px}\n.hr-division-table{overflow-x:auto;border:1px solid var(--y-border);border-radius:var(--y-radius);\n  background:var(--y-surface);padding:0 12px;box-shadow:var(--y-shadow)}\n.hr-division-row{display:grid;grid-template-columns:minmax(178px,1.45fr) 62px 62px 104px minmax(130px,1fr);\n  gap:10px;align-items:center;min-width:700px;padding:11px 2px;border-top:1px solid var(--y-border);\n  color:var(--y-text-2);font-size:11px;line-height:1.45}\n.hr-division-row:first-child{border-top:none}\n.hr-division-row.head{color:var(--y-text-3);font-size:10px;font-weight:800;padding-top:12px}\n.hr-division-task{color:var(--y-text);font-size:12px;font-weight:700}\n.hr-division-state{display:inline-block;padding:3px 7px;border-radius:var(--y-radius-pill);\n  font-size:10px;font-weight:800;font-style:normal;white-space:nowrap}\n.hr-division-state.stable{background:var(--y-ok-weak);color:var(--y-ok)}\n.hr-division-state.pilot{background:var(--y-warn-weak);color:var(--y-warn)}\n.hr-division-state.human{background:var(--y-accent-weak);color:var(--y-accent)}\n.hr-division-evidence{color:var(--y-text-3)}\n.hr-collab-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}\n.hr-collab-card{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);\n  padding:13px;box-shadow:var(--y-shadow);min-width:0}\n.hr-collab-top{display:flex;align-items:center;justify-content:space-between;gap:8px}\n.hr-collab-top b{color:var(--y-text);font-size:13px}\n.hr-collab-top span{color:var(--y-accent);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}\n.hr-collab-card p{color:var(--y-text-2);font-size:11px;line-height:1.65;margin:8px 0 0;min-height:54px}\n.hr-learning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}\n.hr-learning-item{background:var(--y-surface-2);border-radius:var(--y-radius-sm);padding:12px;text-align:center}\n.hr-learning-item b{display:block;color:var(--y-accent);font-size:22px;line-height:1.1}\n.hr-learning-item span{display:block;color:var(--y-text-2);font-size:11px;margin-top:3px}\n.hr-training-progress{margin-top:12px}\n.hr-training-progress>div:first-child{display:flex;justify-content:space-between;gap:10px;\n  color:var(--y-text-2);font-size:11px;margin-bottom:6px}\n.hr-training-progress>div:first-child b{color:var(--y-text)}\n.hr-employee-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}\n.hr-progress-line{display:flex;align-items:center;justify-content:space-between;gap:10px;\n  color:var(--y-text-2);font-size:11px;margin-top:12px}\n.hr-progress-line b{color:var(--y-text);font-variant-numeric:tabular-nums}\n.hr-assessment-score{display:flex;align-items:baseline;gap:10px;margin-top:10px}\n.hr-assessment-score b{color:var(--y-accent);font-size:42px;line-height:1;font-variant-numeric:tabular-nums}\n.hr-assessment-score span{color:var(--y-text-2);font-size:12px}\n.hr-policy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}\n.hr-policy-card{text-align:left;width:100%;background:var(--y-surface);border:1px solid var(--y-border);\n  border-radius:var(--y-radius);padding:15px;box-shadow:var(--y-shadow);font:inherit;\n  color:var(--y-text);min-width:0;cursor:pointer}\n.hr-policy-card:hover{border-color:var(--y-border-strong);box-shadow:var(--y-shadow-lg)}\n.hr-timeline{background:var(--y-surface);border:1px solid var(--y-border);border-radius:var(--y-radius);\n  padding:6px 16px;box-shadow:var(--y-shadow)}\n.hr-timeline-item{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:11px;align-items:start;\n  padding:13px 0;border-top:1px solid var(--y-border)}\n.hr-timeline-item:first-child{border-top:none}\n.hr-timeline-item>i{width:10px;height:10px;border-radius:50%;background:var(--y-accent);margin-top:5px;\n  box-shadow:0 0 0 4px var(--y-accent-weak)}\n.hr-timeline-item>span{color:var(--y-text-3);font-size:10px;white-space:nowrap}\n\n@media(max-width:820px){\n  .hr-org{min-width:0}\n  .hr-org-level{width:100%;max-width:350px}\n  .hr-org-connector{height:16px}\n  .hr-org-branches{grid-template-columns:minmax(0,1fr);gap:14px;padding-top:0}\n  .hr-org-branches::before,.hr-org-leg::before{display:none}\n  .hr-org-auditor{height:auto}\n  .hr-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-management-grid,.hr-profile-grid,.hr-two-col,.hr-three-col,.hr-detail-grid{grid-template-columns:minmax(0,1fr)}\n  .hr-summary-grid,.hr-summary-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-profile-grid.samples,.hr-exit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-performance-grid{grid-template-columns:minmax(0,1fr)}\n  .hr-employee-badge{flex-direction:column}\n  .hr-emp-meta{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-emp-linkbar b{flex-basis:100%;margin-right:0}\n  .hr-collab-grid,.hr-policy-grid,.hr-employee-three{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-system-summary i{margin-left:0;flex-basis:100%}\n  .hr-drawer-panel{width:100%;padding:16px}\n}\n\n@media(max-width:540px){\n  .hr-profile-grid.samples,.hr-exit-grid,.hr-performance-grid{grid-template-columns:minmax(0,1fr)}\n  .hr-grade-grid{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-permission-grid{grid-template-columns:minmax(0,1fr)}\n  .hr-permission-mini{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .hr-emp-meta,.hr-kpi-chips,.hr-collab-grid,.hr-policy-grid,.hr-employee-three,\n  .hr-learning-grid{grid-template-columns:minmax(0,1fr)}\n  .hr-emp-avatar{width:54px;height:54px;flex-basis:54px;font-size:21px}\n  .hr-emp-name{font-size:20px}\n  .hr-division-table{margin-right:-2px}\n}\n";
+    (document.head || document.documentElement).appendChild(st);
+  }catch(e){}
+})();
+
+
+window.__HR_EMPLOYEE_D = {"badge":{"id":"Agent 002","name":"审慧","owner":"芸竹","dept":"内审部","role":"内审专员 · 内控评价","onboard":"2026-09-01","status":"在岗","permCount":3,"caps":["内控测试","风险识别","审计底稿"],"intro":"审慧是芸竹的内审数字员工，负责资料检索、数据整理、底稿生成、风险线索初筛与整改跟踪；审计判断和最终结论由真人负责。"},"kpis":[["今日完成",12,"较昨日 +3","ok"],["准确率","96%","目标 ≥98%","warn"],["人工介入率","6%","目标 ≤5%","warn"],["异常任务",1,"等待真人确认","bad"]],"position":{"why":"把重复的资料检索、数据核对、底稿整理和整改跟踪交给数字员工，让真人把时间放在风险判断、审计结论和责任签字上。","responsibilities":["检索制度、内控手册、历史底稿和审计案例。","按任务口径采集数据，完成清洗、比对和底稿初稿。","识别异常线索并按风险等级初筛、汇总证据。","跟踪整改事项、提醒节点并形成复盘记录。"],"notResponsible":["不独立作出审计结论或责任认定。","不对外发布报告、不代替真人签字。","不访问岗位权限之外的系统和敏感数据。"],"targets":[["准确率","≥98%"],["任务时效","≤5 分钟"],["人工介入率","≤5%"],["证据完整率","100%"]]},"division":[{"task":"审计计划与范围确认","human":"主责","agent":"辅助","mode":"人机协同","state":"协同中","tone":"pilot","evidence":"计划草案 / 真人确认"},{"task":"制度与历史资料检索","human":"抽查","agent":"主责","mode":"Agent 承接","state":"已稳定","tone":"stable","evidence":"检索记录 / 来源引用"},{"task":"数据采集与底稿整理","human":"复核","agent":"主责","mode":"Agent 承接","state":"已稳定","tone":"stable","evidence":"底稿 / 数据比对记录"},{"task":"风险识别与线索初筛","human":"复核","agent":"主责","mode":"Agent 承接","state":"已稳定","tone":"stable","evidence":"风险清单 / 证据包"},{"task":"审计判断与结论","human":"主责","agent":"不参与","mode":"真人负责","state":"真人兜底","tone":"human","evidence":"判断记录 / 签字责任"},{"task":"整改跟踪与复盘","human":"验收","agent":"主责","mode":"人机协同","state":"已稳定","tone":"stable","evidence":"整改台账 / 复盘记录"}],"collaboration":[{"t":"正确的心态","d":"把审慧当成需要培养的新同事，而不是随手调用的一次性工具。","p":92},{"t":"碎片化倾诉","d":"把现场情况、判断习惯和历史背景持续讲给它，形成个人上下文。","p":78},{"t":"培养和对齐","d":"发现偏差就及时纠正，把正确做法沉淀为判断规则和案例。","p":66},{"t":"完成目标结果","d":"从交代任务转向共同拿结果，真人验收、Agent 执行并留痕。","p":58}],"capability":{"labels":["数据分析","企业理解","流程处理","业务理解","工具使用","沟通表达"],"current":[86,78,84,72,82,80],"target":[90,85,88,86,85,88],"learned":[["判断规则",26],["话术模板",18],["流程步骤",12],["案例沉淀",34]]},"permissions":[{"k":"文档与知识库","v":"审计制度 / 内控手册","scope":"只读","state":"已开通","tone":"ok"},{"k":"数据与系统","v":"审计数据表 / 底稿工具","scope":"只读 + 写入","state":"已开通","tone":"ok"},{"k":"群聊与协作","v":"内审项目群 / HR Agent","scope":"受限","state":"已开通","tone":"ok"},{"k":"对外发布与签字","v":"报告发布 / 正式签字","scope":"禁止","state":"真人负责","tone":"warn"}],"training":{"done":8,"total":12,"current":3,"wait":1,"rows":[["公司级","制度、红线、数据安全与协作规范","已完成","ok"],["部门级","内审流程、证据标准与整改机制","已完成","ok"],["岗位级","内控测试、风险识别、底稿生成","进行中 76%","warn"],["反馈复训","异常线索解释与案例纠偏","进行中 62%","warn"]]},"results":{"kpis":[["完成任务","128 项"],["节省工时","42 小时"],["一次做对率","91%"],["真人纠偏率","7%"]],"trend":[72,76,80,84,88,91],"work":[["采购合同异常条款筛查","已完成","09-15 10:42"],["Q3 费用报销底稿整理","处理中","09-15 11:05"],["供应商重复付款线索核验","待真人确认","09-15 11:12"],["上期整改事项跟进","已完成","09-14 17:30"]]},"assessment":{"score":89,"grade":"A","trend":[76,80,83,86,89],"next":["将风险线索解释准确率提升到 92%","把高频判断沉淀为 10 条规则","完成 20 个真实案例复训"]},"policies":[{"id":"role","icon":"岗","title":"员工 Agent 岗位与职责制度","desc":"用岗位定义能力边界、责任事项、KPI 与真人 Owner。","rules":["权限随岗位，不随个人临时扩张。","岗位职责、KPI 与边界使用同一版本。","职责变化同步更新岗位说明书和培训清单。"],"files":[{"title":"审慧岗位说明书","meta":"岗位说明书","url":""}]},{"id":"permission","icon":"权","title":"员工 Agent 权限使用制度","desc":"按岗位授予六类权限，最小够用、全程留痕。","rules":["仅访问完成岗位任务所需的数据和工具。","对外发布、结论和签字保留真人。","权限变更必须有申请、审批和回读记录。"],"files":[{"title":"Agent 权限设计规范","meta":"标准件","url":""}]},{"id":"collab","icon":"协","title":"人机协作规范","desc":"定义交代、执行、确认、升级、验收五类协作规则。","rules":["任务必须写清目标、口径、期限和验收标准。","超边界任务升级 HR Agent 或真人 Owner。","跨 Agent 协作使用标准请求单并留痕。"],"files":[{"title":"A2A 与人机协作规范","meta":"标准件","url":""}]},{"id":"train","icon":"训","title":"员工 Agent 培训制度","desc":"公司级、部门级、岗位级培训通过后，方可承接真实任务。","rules":["上岗前完成三级培训与复测。","岗位新增能力必须先培训、再试点、再扩权。","每次纠偏沉淀为规则、案例或复训任务。"],"files":[{"title":"员工 Agent 上岗培训清单","meta":"培训与验收","url":"http://81.71.152.110/client-deliveries/client-bot-training/training-guide-v1.6.md"}]},{"id":"assess","icon":"考","title":"员工 Agent 考核制度","desc":"按质量、效率、协作、合规和业务价值形成定期评价。","rules":["评价同时看任务量、准确率和纠偏情况。","连续低等级先补训，不直接扩大权限。","考核结果与下一阶段培养目标联动。"],"files":[{"title":"Agent 定期考核表","meta":"审计来源","url":""}]},{"id":"change","icon":"变","title":"变更与退出制度","desc":"转岗、暂停、复训和退出必须完成权限与资料闭环。","rules":["岗位变化时先调整权限，再更新档案。","暂停或退出时关闭任务、回收权限、归档资产。","变更过程保留原因、审批、交接和回读证据。"],"files":[{"title":"Agent 生命周期管理规范","meta":"标准件","url":""}]}],"timeline":[["2026-09-01","入职上岗","完成公司级、部门级培训并进入内审试点。"],["2026-09-05","权限调整","新增审计数据只读与底稿工具写入权限。"],["2026-09-10","能力升级","新增异常线索初筛与整改跟踪能力。"],["2026-09-15","绩效复核","本期综合评分 89，等级 A，进入下一阶段培养。"]]};
+
+
+(function(){
+var D = window.__HR_EMPLOYEE_D;
+function empStats(items){
+  return '<div class="hr-detail-grid">'+items.map(function(x){
+    return '<div class="hr-detail-stat"><div class="k">'+Y.esc(x[0])+'</div><div class="v">'+Y.esc(x[1])+'</div></div>';
+  }).join('')+'</div>';
+}
+function empRules(title,items){
+  return '<div class="hr-detail-block"><h3>'+Y.esc(title)+'</h3><ul>'+items.map(function(x){ return '<li>'+Y.esc(x)+'</li>'; }).join('')+'</ul></div>';
+}
+function empFiles(files){
+  return '<div class="hr-detail-block"><h3>关联规则与文件</h3>'+files.map(function(f){
+    var inner='<div><div class="hr-list-title">'+Y.esc(f.title)+'</div><div class="hr-list-sub">'+Y.esc(f.meta)+'</div></div>';
+    var right=f.url?'<a href="'+Y.esc(f.url)+'" target="_blank" rel="noopener">打开文件</a>':'<span class="hr-tag muted">内容待补</span>';
+    return '<div class="hr-file-row">'+inner+right+'</div>';
+  }).join('')+'</div>';
+}
+function empShell(kicker,title,lead,stats,rules,files){
+  return '<div class="hr-drawer-kicker">'+Y.esc(kicker)+'</div><div class="hr-drawer-title">'+Y.esc(title)+'</div>'
+    +'<p class="hr-drawer-lead">'+Y.esc(lead)+'</p>'+empStats(stats)
+    +(rules||[]).map(function(r){ return empRules(r[0],r[1]); }).join('')+empFiles(files||[]);
+}
+function empRadarSVG(c){
+  var size=330,cx=165,cy=165,R=102,n=c.labels.length;
+  function pt(i,r){var a=-Math.PI/2+i*2*Math.PI/n;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+  function shape(vals,color,dash,fill){
+    var d=vals.map(function(v,i){var q=pt(i,R*Math.max(0,Math.min(1,v/100)));return (i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1);}).join(' ')+' Z';
+    return '<path d="'+d+'" fill="'+fill+'" stroke="'+color+'" stroke-width="3"'+(dash?' stroke-dasharray="6 6"':'')+'/>';
+  }
+  var rings=[.25,.5,.75,1].map(function(f){
+    var d=c.labels.map(function(_,i){var q=pt(i,R*f);return (i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1);}).join(' ')+' Z';
+    return '<path d="'+d+'" fill="none" stroke="var(--y-border-strong)"/>';
+  }).join('');
+  var spokes=c.labels.map(function(_,i){var q=pt(i,R);return '<line x1="'+cx+'" y1="'+cy+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" stroke="var(--y-border-strong)"/>';}).join('');
+  var labels=c.labels.map(function(t,i){
+    var q=pt(i,R+27),a=Math.abs(q[0]-cx)<6?'middle':(q[0]>cx?'start':'end');
+    return '<text x="'+q[0].toFixed(1)+'" y="'+(q[1]+4).toFixed(1)+'" font-size="10" fill="var(--y-text-2)" text-anchor="'+a+'">'+t+'</text>';
+  }).join('');
+  return '<div class="hr-radar-chart"><div class="hr-radar-title">岗位能力对比 <small>当前 vs 岗位要求</small></div>'
+    +'<svg viewBox="0 0 '+size+' '+size+'" role="img" aria-label="员工 Agent 能力雷达">'+rings+spokes+shape(c.target,'var(--y-cat-3)',true,'var(--y-accent-weak)')+shape(c.current,'var(--y-accent)',false,'var(--y-accent-weak)')+labels+'</svg>'
+    +'<div class="hr-radar-legend"><span><i class="cur"></i>当前能力</span><span><i class="prev"></i>岗位要求</span></div></div>';
+}
+function empPolicyDetail(p){
+  return empShell("员工 Agent 管理制度",p.title,p.desc,[["适用对象","审慧"],["状态","执行中"],["关联文件",String(p.files.length)+" 项"]],[["制度要点",p.rules]],p.files);
+}
+function empDetail(view){
+  var p=D.policies.filter(function(x){return 'policy-'+x.id===view;})[0];
+  if(p)return empPolicyDetail(p);
+  if(view==='division')return empShell("人机分工 · 二级明细","审慧的工作承接清单","逐项记录真人、Agent 和协同状态，是岗位经验是否沉淀为能力的核心依据。",[["分工事项",D.division.length],["已稳定承接",4],["协同中",1],["真人兜底",1]],[["全部工作项",D.division.map(function(x){return x.task+"：真人 "+x.human+" / Agent "+x.agent+"｜"+x.mode+"｜"+x.state+"｜证据："+x.evidence;})]],[]);
+  if(view==='capability')return empShell("会什么 · 学了什么","能力与学习明细","能力对照岗位要求，学习记录按判断、话术、流程和案例持续沉淀。",[["能力维度",D.capability.labels.length],["判断规则",26],["话术模板",18],["案例沉淀",34]],[["岗位要求",D.capability.labels.map(function(x,i){return x+"：当前 "+D.capability.current[i]+" / 目标 "+D.capability.target[i];})]],[]);
+  if(view==='permission')return empShell("权限与求助","审慧的权限配置","权限随岗位授予；缺少权限、遇到高风险或不确定事项时，由 HR Agent 或真人 Owner 处理。",[["权限域","4"],["已开通","3"],["真人保留","1"],["红线","0 起"]],[["当前权限",D.permissions.map(function(x){return x.k+":"+x.v+"，"+x.scope+"，"+x.state;})]],[]);
+  if(view==='training')return empShell("培训与成长 · 二级明细","员工 Agent 培训清单","公司级、部门级、岗位级培训与错误复训共同组成成长闭环。",[["已完成",D.training.done],["培训中",D.training.current],["待培训",D.training.wait],["总项数",D.training.total]],[["培训清单",D.training.rows.map(function(x){return x[0]+"："+x[1]+"｜"+x[2];})]],[]);
+  if(view==='result')return empShell("结果与价值 · 二级明细","审慧的工作产出明细","结果同时看完成任务、节省工时、一次做对率和真人纠偏率。",[["完成任务","128 项"],["节省工时","42 小时"],["一次做对率","91%"],["真人纠偏率","7%"]],[["最近工作",D.results.work.map(function(x){return x[0]+"｜"+x[1]+"｜"+x[2];})]],[]);
+  if(view==='assessment')return empShell("考核与成长 · 二级明细","审慧的本期考核","本期综合评分 89，等级 A；下一阶段重点提升线索解释准确率和案例复训。",[["综合评分",D.assessment.score],["等级",D.assessment.grade],["进步曲线","76 → 89"],["培养目标",3]],[["下一阶段目标",D.assessment.next]],[]);
+  return '<p class="lead">暂无内容。</p>';
+}
+var badge=D.badge;
+var badgeHtml='<div class="hr-employee-badge"><div class="hr-emp-avatar">审</div><div class="hr-emp-main"><div class="hr-emp-name">'+Y.esc(badge.name)+' <span class="hr-tag ok">'+Y.esc(badge.status)+'</span></div><div class="hr-emp-intro">'+Y.esc(badge.intro)+'</div><div class="hr-emp-meta"><span><b>Agent ID</b>'+Y.esc(badge.id)+'</span><span><b>对应真人</b>'+Y.esc(badge.owner)+'</span><span><b>部门 / 角色</b>'+Y.esc(badge.dept+" / "+badge.role)+'</span><span><b>上线时间</b>'+Y.esc(badge.onboard)+'</span><span><b>权限</b>'+badge.permCount+' 项</span><span><b>基础能力</b>'+Y.esc(badge.caps.join(" · "))+'</span></div></div></div>';
+var kpis='<div class="hr-summary-grid compact">'+D.kpis.map(function(x){return '<div class="hr-summary-item"><div class="k">'+Y.esc(x[0])+'</div><div class="v">'+Y.esc(x[1])+'</div><div class="d '+x[3]+'">'+Y.esc(x[2])+'</div></div>';}).join('')+'</div>';
+var linkbar='<div class="hr-emp-linkbar"><b>由 HR Agent 提供支撑</b><button type="button" data-hr-emp-view="permission">权限申请</button><button type="button" data-hr-emp-view="training">补充培训</button><button type="button" data-hr-emp-view="assessment">发起考核</button><button type="button" data-hr-emp-view="result">异常与纠偏</button></div>';
+var position='<div class="hr-two-col"><div class="hr-panel"><div class="hr-panel-title">岗位定位</div><div class="hr-panel-sub">'+Y.esc(D.position.why)+'</div><div class="hr-detail-block"><h3>主要职责</h3><ul>'+D.position.responsibilities.map(function(x){return '<li>'+Y.esc(x)+'</li>';}).join('')+'</ul></div></div><div class="hr-panel"><div class="hr-panel-title">职责边界与 KPI</div><div class="hr-detail-block"><h3>不负责事项</h3><ul>'+D.position.notResponsible.map(function(x){return '<li>'+Y.esc(x)+'</li>';}).join('')+'</ul></div><div class="hr-kpi-chips">'+D.position.targets.map(function(x){return '<span><b>'+Y.esc(x[0])+'</b>'+Y.esc(x[1])+'</span>';}).join('')+'</div></div></div>';
+var division='<div class="hr-division-table"><div class="hr-division-row head"><span>工作项</span><span>真人</span><span>Agent</span><span>协同状态</span><span>证据</span></div>'+D.division.map(function(x){return '<div class="hr-division-row"><span class="hr-division-task">'+Y.esc(x.task)+'</span><span>'+Y.esc(x.human)+'</span><span>'+Y.esc(x.agent)+'</span><span><i class="hr-division-state '+x.tone+'">'+Y.esc(x.state)+'</i></span><span class="hr-division-evidence">'+Y.esc(x.evidence)+'</span></div>';}).join('')+'</div><button type="button" class="hr-link-btn" data-hr-emp-view="division">查看完整人机分工</button>';
+var collab='<div class="hr-collab-grid">'+D.collaboration.map(function(x){return '<div class="hr-collab-card"><div class="hr-collab-top"><b>'+Y.esc(x.t)+'</b><span>'+x.p+'%</span></div><p>'+Y.esc(x.d)+'</p><div class="hr-cap-track"><i data-w="'+x.p+'%"></i></div></div>';}).join('')+'</div>';
+var learned='<div class="hr-learning-grid">'+D.capability.learned.map(function(x){return '<div class="hr-learning-item"><b>'+x[1]+'</b><span>'+Y.esc(x[0])+'</span></div>';}).join('')+'</div><div class="hr-training-progress"><div><b>培训与喂料进度</b><span>8 / 12</span></div><div class="hr-cap-track"><i data-w="67%"></i></div></div><button type="button" class="hr-link-btn" data-hr-emp-view="training">查看培训清单</button>';
+var capability='<div class="hr-two-col"><div class="hr-panel">'+empRadarSVG(D.capability)+'<button type="button" class="hr-link-btn" data-hr-emp-view="capability">查看能力明细</button></div><div class="hr-panel"><div class="hr-panel-title">会什么 + 学了什么</div><div class="hr-panel-sub">从真实任务、纠偏和复训中持续沉淀，不只看完成数量。</div>'+learned+'</div></div>';
+var permissionRows=D.permissions.map(function(x){return '<div class="hr-list-row"><div class="hr-list-main"><div class="hr-list-title">'+Y.esc(x.k)+'</div><div class="hr-list-sub">'+Y.esc(x.v)+'｜'+Y.esc(x.scope)+'</div></div><span class="hr-tag '+x.tone+'">'+Y.esc(x.state)+'</span></div>';}).join('');
+var trainingRows=D.training.rows.map(function(x){return '<div class="hr-list-row"><div class="hr-list-main"><div class="hr-list-title">'+Y.esc(x[0])+'</div><div class="hr-list-sub">'+Y.esc(x[1])+'</div></div><span class="hr-tag '+x[3]+'">'+Y.esc(x[2])+'</span></div>';}).join('');
+var resultKpis='<div class="hr-summary-grid compact">'+D.results.kpis.map(function(x){return '<div class="hr-summary-item"><div class="k">'+Y.esc(x[0])+'</div><div class="v">'+Y.esc(x[1])+'</div></div>';}).join('')+'</div>';
+var workRows=D.results.work.map(function(x){return '<div class="hr-list-row"><div class="hr-list-main"><div class="hr-list-title">'+Y.esc(x[0])+'</div><div class="hr-list-sub">'+Y.esc(x[2])+'</div></div><span class="hr-tag">'+Y.esc(x[1])+'</span></div>';}).join('');
+var resultPanel='<div class="hr-two-col"><div class="hr-panel"><div class="hr-panel-title">在干什么 · 工作流水</div><div class="hr-list">'+workRows+'</div><button type="button" class="hr-link-btn" data-hr-emp-view="result">查看产出明细</button></div><div class="hr-panel"><div class="hr-panel-title">干得怎样 · 结果与价值</div>'+resultKpis+'<div class="hr-progress-line"><span>一次做对率</span><b>'+D.results.trend[D.results.trend.length-1]+'%</b></div><div class="hr-cap-track"><i data-w="91%"></i></div><div class="hr-progress-line"><span>真人纠偏率</span><b>7%</b></div><div class="hr-cap-track"><i data-w="7%"></i></div></div></div>';
+var assessmentScore='<div class="hr-panel"><div class="hr-panel-title">考核与成长</div><div class="hr-assessment-score"><b>'+D.assessment.score+'</b><span>综合评分 · '+D.assessment.grade+' 级</span></div>'
+  +Y.spark({title:"综合评分进步曲线",sub:"近 5 次考核评分，从 76 分升到 89 分。",values:D.assessment.trend,labels:["第1次","第2次","第3次","第4次","第5次"],labelHead:"考核次序",valueHead:"综合评分",endText:D.assessment.score+" 分"})
+  +'<button type="button" class="hr-link-btn" data-hr-emp-view="assessment">查看考核与培养目标</button></div>';
+var assessment='<div class="hr-two-col">'+assessmentScore+'<div class="hr-panel"><div class="hr-panel-title">下一阶段培养目标</div><div class="hr-list">'+D.assessment.next.map(function(x){return '<div class="hr-list-row"><div class="hr-list-main"><div class="hr-list-title">'+Y.esc(x)+'</div></div><span class="hr-tag">培养中</span></div>';}).join('')+'</div></div></div>';
+var policyCards=D.policies.map(function(p){return '<button type="button" class="hr-policy-card" data-hr-emp-view="policy-'+p.id+'"><div class="hr-management-top"><span class="hr-management-icon">'+Y.esc(p.icon)+'</span><span class="hr-management-title">'+Y.esc(p.title)+'</span></div><div class="hr-management-desc">'+Y.esc(p.desc)+'</div><div class="hr-management-meta"><span>'+p.rules.length+' 条规则</span><b>查看明细 →</b></div></button>';}).join('');
+var timeline='<div class="hr-timeline">'+D.timeline.map(function(x){return '<div class="hr-timeline-item"><i></i><div><div class="hr-list-title">'+Y.esc(x[1])+'</div><div class="hr-list-sub">'+Y.esc(x[2])+'</div></div><span>'+Y.esc(x[0])+'</span></div>';}).join('')+'</div>';
+
+document.getElementById("app").innerHTML=Y.wrap(
+  Y.hero({
+    kicker:"员工 Agent · 数字员工深度主页",
+    title:"审慧",
+    sub:"一管一干：HR Agent 负责管理，审慧负责执行。这里看清它是谁、该干什么、哪些活已经交给它、学了多少、干得怎样。",
+    chips:["员工 Agent","Agent 002","对应真人 芸竹","🧪 模拟数据"]
+  })
+  +badgeHtml+kpis+linkbar
+  +Y.sec("🪪","岗位与职责","为什么设这个岗，负责什么、不负责什么")
+  +position
+  +Y.sec("↔","人机分工图","逐项看清真人做、Agent 做和人机协同")
+  +division
+  +Y.sec("🧑‍🤝‍🧑","我与 Agent 怎么协作","把 Agent 当新同事来养")
+  +collab
+  +Y.sec("🎯","会什么 + 学了什么","能力对岗位，经验持续沉淀")
+  +capability
+  +Y.sec("🔐","权限、培训与成长","当前能做什么，下一步补什么")
+  +'<div class="hr-employee-three"><div class="hr-panel"><div class="hr-panel-title">权限与边界</div><div class="hr-list">'+permissionRows+'</div><button type="button" class="hr-link-btn" data-hr-emp-view="permission">查看权限明细</button></div><div class="hr-panel"><div class="hr-panel-title">培训与成长</div><div class="hr-list">'+trainingRows+'</div><button type="button" class="hr-link-btn" data-hr-emp-view="training">查看培训清单</button></div><div class="hr-panel"><div class="hr-panel-title">成长状态</div><div class="hr-assessment-score"><b>'+D.assessment.score+'</b><span>'+D.assessment.grade+' 级</span></div><div class="hr-panel-sub">当前等级稳定，下一阶段重点提升线索解释和案例复训。</div><button type="button" class="hr-link-btn" data-hr-emp-view="assessment">查看培养目标</button></div></div>'
+  +Y.sec("📈","在干什么 + 干得怎样","任务流水、产出、价值与异常")
+  +resultPanel
+  +Y.sec("","考核与成长","本期评分、进步曲线与下一阶段培养目标")
+  +assessment
+  +Y.sec("📘","员工 Agent 管理制度与清单","每项制度可点开查看规则和关联文件")
+  +'<div class="hr-policy-grid">'+policyCards+'</div>'
+  +Y.sec("🕘","变更与退出记录","岗位、权限和能力变化留痕")
+  +timeline
+  +Y.foot("审慧为模拟样例，底层挂 Agent 002；接入真实 HRIS 与运行数据后逐条替换。")
+  +'<div class="hr-drawer" id="hr-emp-drawer"><div class="hr-drawer-panel"><div class="hr-drawer-head"><div id="hr-emp-drawer-title"></div><button type="button" class="hr-drawer-close" data-hr-emp-close="1">×</button></div><div id="hr-emp-drawer-body"></div></div></div>'
+);
+var drawer=document.getElementById("hr-emp-drawer");
+var body=document.getElementById("hr-emp-drawer-body");
+var title=document.getElementById("hr-emp-drawer-title");
+function close(){drawer.classList.remove("open");document.body.classList.remove("hr-modal-open");}
+document.getElementById("app").addEventListener("click",function(e){
+  var b=e.target.closest("[data-hr-emp-view]");if(!b)return;
+  title.innerHTML='<div class="hr-drawer-kicker">员工 Agent 二级页面</div><div class="hr-drawer-title">查看详情</div>';
+  body.innerHTML=empDetail(b.getAttribute("data-hr-emp-view"));
+  drawer.classList.add("open");document.body.classList.add("hr-modal-open");
+  body.querySelectorAll(".hr-cap-track i").forEach(function(el){el.style.width=el.getAttribute("data-w");});
+});
+drawer.addEventListener("click",function(e){if(e.target===drawer||e.target.closest("[data-hr-emp-close]"))close();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")close();});
+document.querySelectorAll(".hr-collab-card .hr-cap-track i,.hr-training-progress .hr-cap-track i").forEach(function(el){el.style.width=el.getAttribute("data-w");});
+})();
+</script>
+</body>
+</html>

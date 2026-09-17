@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>经营看板 · 工厂运营层 · 中际旭创</title>
+<style>
+:root {
+  --bg: #f1f3f5;
+  --surface: #ffffff;
+  --surface-soft: #f7f8f7;
+  --ink: #17211f;
+  --muted: #66726e;
+  --line: #d8dedb;
+  --line-strong: #b9c2be;
+  --teal: #176b61;
+  --teal-soft: #e1f0ec;
+  --blue: #315f93;
+  --blue-soft: #e8eff8;
+  --amber: #a86512;
+  --amber-soft: #fff1d8;
+  --green: #237a4b;
+  --green-soft: #e5f4e9;
+  --red: #a13d35;
+  --red-soft: #f9e9e7;
+  --graphite: #26312e;
+  --shadow: 0 1px 2px rgba(17, 34, 29, .05), 0 10px 28px rgba(17, 34, 29, .04);
+  --radius: 8px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(23, 33, 31, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 33, 31, .022) 1px, transparent 1px),
+    var(--bg);
+  background-size: 32px 32px;
+  font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea { font: inherit; letter-spacing: 0; }
+
+button,
+a { -webkit-tap-highlight-color: transparent; }
+
+button { color: inherit; }
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(49, 95, 147, .22);
+  outline-offset: 2px;
+}
+
+.app-shell { min-height: 100vh; overflow-x: clip; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+  align-items: center;
+  min-height: 68px;
+  padding: 8px 28px;
+  background: rgba(255, 255, 255, .96);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  width: fit-content;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand > span:last-child { display: grid; }
+
+.brand strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.brand small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.brand-mark {
+  display: grid;
+  grid-template-columns: repeat(3, 5px);
+  align-items: end;
+  gap: 3px;
+  width: 27px;
+  height: 27px;
+  padding: 5px;
+  background: var(--graphite);
+  border-radius: 6px;
+}
+
+.brand-mark i {
+  display: block;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.brand-mark i:nth-child(1) { height: 8px; background: #6fc4b5; }
+
+.brand-mark i:nth-child(2) { height: 15px; }
+
+.brand-mark i:nth-child(3) { height: 11px; background: #f4b85e; }
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.main-nav a {
+  padding: 7px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 6px;
+}
+
+.main-nav a:hover { color: var(--ink); background: #fff; }
+
+.main-nav a.is-active {
+  color: #fff;
+  background: var(--graphite);
+}
+
+.scope-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: #35a66b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(53, 166, 107, .13);
+}
+
+.demo-tag,
+.demo-pill,
+.pending-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid #edcf98;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.pending-pill {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-color: #bfd0e5;
+}
+
+.view[hidden] { display: none !important; }
+
+.view { animation: view-in .18s ease-out; }
+
+@keyframes view-in {
+  from { opacity: .4; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.eyebrow,
+.section-kicker {
+  margin: 0;
+  color: var(--teal);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.home-head,
+.app-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.home-head h1,
+.app-heading h1 {
+  margin: 5px 0 4px;
+  font-size: clamp(26px, 2.2vw, 36px);
+  line-height: 1.16;
+}
+
+.home-head p,
+.app-heading p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.home-meta {
+  display: grid;
+  justify-items: end;
+  min-width: 178px;
+  padding: 13px 15px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.home-meta span,
+.home-meta small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.home-meta strong { color: var(--amber); font-size: 15px; }
+
+.confirm-strip .section-kicker { grid-column: 1 / -1; }
+
+.back-link {
+  width: fit-content;
+  margin: 0 0 13px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.back-link:hover { color: var(--teal); }
+
+.heading-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compact-field {
+  display: grid;
+  gap: 3px;
+}
+
+.compact-field span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+select,
+input,
+textarea {
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+}
+
+select {
+  min-height: 36px;
+  padding: 7px 31px 7px 10px;
+}
+
+input,
+textarea { padding: 9px 10px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-head h2 {
+  margin: 4px 0 0;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.count-badge,
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  color: var(--teal);
+  background: var(--teal-soft);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.answer-feedback button {
+  min-height: 28px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.answer-feedback button:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+.answer-feedback button.is-selected {
+  color: #fff;
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.answer-feedback button[data-answer-feedback="down"].is-selected {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.action-button,
+.secondary-button,
+.primary-button,
+.text-button {
+  min-height: 33px;
+  padding: 7px 11px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-button,
+.secondary-button {
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line-strong);
+}
+
+.action-button:hover,
+.secondary-button:hover { border-color: var(--teal); color: var(--teal); }
+
+.primary-button {
+  color: #fff;
+  background: var(--teal);
+  border: 1px solid var(--teal);
+}
+
+.primary-button:hover { background: #12594f; }
+
+.primary-button.is-saved { background: var(--green); border-color: var(--green); }
+
+.text-button {
+  min-height: auto;
+  padding: 3px 0;
+  color: var(--teal);
+  background: transparent;
+  border: 0;
+}
+
+.secondary-button.compact {
+  min-height: 29px;
+  padding: 4px 9px;
+}
+
+.ask-form textarea {
+  min-height: 48px;
+  resize: none;
+}
+
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.filter-bar label,
+.dashboard-filters label,
+.filter-select {
+  display: grid;
+  gap: 3px;
+}
+
+.filter-bar label > span,
+.dashboard-filters label > span,
+.filter-select > span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.filter-bar select,
+.dashboard-filters select,
+.filter-select select { width: 100%; min-height: 34px; font-size: 10px; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+
+.legend-dot { width: 7px; height: 7px; border-radius: 2px; }
+
+.legend-dot.human { background: #d99a2b; }
+
+.legend-dot.agent { background: #8b9691; }
+
+.legend-dot.done { background: var(--green); }
+
+.legend-dot.evidence { background: var(--blue); }
+
+.dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 9px;
+  padding: 12px;
+  margin-bottom: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.dashboard-filters > label { flex: 0 1 190px; }
+
+.dashboard-filters .filter-result { flex: 1 1 240px; }
+
+.dashboard-filters .filter-reset { flex: 0 0 auto; align-self: center; }
+
+.dashboard-filters .filter-note {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.panel-empty {
+  margin: 10px 0 0;
+  padding: 10px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+body.has-drawer main {
+  width: min(1520px, calc(100% - 470px));
+  margin-left: 0;
+  margin-right: auto;
+}
+
+body.has-drawer .process-board { overflow-x: auto; }
+
+@media (max-width: 980px) {
+  body.has-drawer main { width: min(1520px, 100%); margin: 0 auto; }
+}
+
+.filter-result {
+  display: grid;
+  align-content: center;
+  padding: 7px 10px;
+  background: var(--teal-soft);
+  border-radius: 5px;
+}
+
+.filter-result span { color: var(--teal); font-size: 9px; }
+
+.filter-result strong { font-size: 11px; }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.kpi-card {
+  position: relative;
+  display: grid;
+  padding: 14px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font: inherit;
+  cursor: pointer;
+}
+
+.kpi-card:hover { border-color: var(--teal); }
+
+.kpi-card > span { color: var(--muted); font-size: 10px; }
+
+.kpi-card strong { margin: 5px 0 2px; font-size: 26px; line-height: 1; }
+
+.kpi-card small { color: var(--green); font-size: 9px; }
+
+.kpi-source {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 9px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  font-size: 8px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.35fr .85fr;
+  gap: 12px;
+}
+
+.trend-panel,
+.distribution-panel,
+.utilization-panel,
+.task-panel,
+.drilldown-panel {
+  padding: 17px;
+}
+
+.chart-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 14px 0 4px;
+}
+
+.chart-caption strong { font-size: 25px; }
+
+.chart-caption span { color: var(--green); font-size: 9px; }
+
+.line-chart {
+  height: 210px;
+  margin: 0 -4px;
+}
+
+.line-chart svg { width: 100%; height: 100%; overflow: visible; }
+
+.grid-line { stroke: #dfe4e2; stroke-width: 1; }
+
+.axis-label { fill: #75807c; font-size: 10px; }
+
+.trend-area { fill: rgba(23, 107, 97, .08); }
+
+.trend-line { fill: none; stroke: var(--teal); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+.trend-point { fill: #fff; stroke: var(--teal); stroke-width: 2; }
+
+.data-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  padding-top: 9px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  font-size: 8px;
+}
+
+.donut-wrap {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 15px;
+  padding: 21px 0 10px;
+}
+
+.donut {
+  display: grid;
+  place-items: center;
+  width: 145px;
+  height: 145px;
+  border-radius: 50%;
+  background: conic-gradient(var(--teal) 0 78%, #9eb7b2 78% 88%, #d3d9d7 88% 95%, #e6b461 95% 100%);
+}
+
+.donut::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 91px;
+  height: 91px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.donut span {
+  z-index: 1;
+  display: grid;
+  grid-area: 1 / 1;
+  justify-items: center;
+}
+
+.donut strong { font-size: 23px; line-height: 1; }
+
+.donut small { color: var(--muted); font-size: 9px; }
+
+.legend-list { display: grid; gap: 8px; }
+
+.legend-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.legend-row i { width: 8px; height: 8px; border-radius: 2px; }
+
+.legend-row span { color: var(--muted); }
+
+.legend-row strong { font-size: 10px; }
+
+.legend-row:hover span,
+.legend-row:hover strong { color: var(--teal); }
+
+.bar-list { display: grid; gap: 12px; margin-top: 20px; }
+
+.bar-row { display: grid; grid-template-columns: 58px 1fr 36px; align-items: center; gap: 8px; font-size: 9px; }
+
+.bar-row small { grid-column: 2 / 4; color: var(--muted); font-size: 8px; }
+
+.bar-row-action {
+  width: 100%;
+  padding: 0;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.bar-row-action:hover strong { color: var(--teal); }
+
+.bar-row-reference { opacity: .72; }
+
+.bar-track { display: block; height: 8px; overflow: hidden; background: #edf0ef; border-radius: 4px; }
+
+.bar-fill { display: block; height: 100%; background: var(--blue); border-radius: 4px; }
+
+.bar-row:nth-child(2) .bar-fill { background: var(--teal); }
+
+.bar-row:nth-child(3) .bar-fill { background: #d59a38; }
+
+.bar-row:nth-child(4) .bar-fill { background: #80908a; }
+
+.task-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.task-metric {
+  padding: 11px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--surface-soft);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.task-metric:hover { border-color: var(--teal); background: #fff; }
+
+.task-metric span { display: block; color: var(--muted); font-size: 9px; }
+
+.task-metric strong { display: block; margin-top: 3px; font-size: 18px; }
+
+.task-metric small { color: var(--muted); font-size: 8px; }
+
+.drilldown-panel {
+  margin-top: 12px;
+  scroll-margin-top: 85px;
+}
+
+.drilldown-panel.is-collapsed .table-wrap { display: none; }
+
+.drilldown-basis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.drilldown-basis > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  background: var(--surface-soft);
+  border-radius: 5px;
+}
+
+.drilldown-basis span { color: var(--muted); font-size: 8px; }
+
+.drilldown-basis strong { font-size: 9px; line-height: 1.45; }
+
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  margin-top: 13px;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+th,
+td {
+  padding: 9px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+th { color: var(--muted); background: var(--surface-soft); font-weight: 700; }
+
+tbody tr { cursor: pointer; }
+
+tbody tr:hover { background: #f8faf9; }
+
+tbody tr.is-clickable:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+
+.table-device { color: var(--blue); font-weight: 750; }
+
+.device-event-table th,
+.device-event-table td { white-space: normal; vertical-align: top; }
+
+.device-event-table td:last-child { min-width: 170px; }
+
+.device-event-table td:last-child small { display: block; margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.45; }
+
+.device-related-actions button { justify-content: flex-start; text-align: left; }
+
+.graph-mode-switch button {
+  min-height: 30px;
+  padding: 5px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.graph-mode-switch button.is-active {
+  color: #fff;
+  background: var(--graphite);
+}
+
+.search-input input { min-height: 41px; }
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  min-height: 38px;
+  font-size: 11px;
+}
+
+.form-grid textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.knowledge-actions .text-button { margin-left: auto; }
+
+.graph-filters input[type="checkbox"] { accent-color: var(--teal); }
+
+.filter-select { margin-top: 12px; }
+
+.graph-tools button {
+  min-width: 32px;
+  min-height: 30px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.graph-tools button:hover { color: var(--teal); border-color: var(--teal); }
+
+.detail-actions button { min-height: 31px; padding: 5px 7px; font-size: 9px; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 100;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 14px;
+  color: #fff;
+  background: var(--graphite);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(17, 34, 29, .2);
+  font-size: 11px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+.answer-actions .action-button.is-primary {
+  color: #fff;
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.answer-actions .action-button.is-primary:hover { background: #12564e; }
+
+.process-mode-switch {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 11px;
+  padding: 3px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.process-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px 14px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.process-mode-switch button.is-active { color: #fff; background: var(--graphite); }
+
+.process-mode-switch button b {
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  color: var(--graphite);
+  background: var(--amber);
+  border-radius: 9px;
+  font-size: 9px;
+}
+
+.process-mode-panel { margin-bottom: 12px; }
+
+.flow-editor-fields input,
+.flow-editor-fields textarea,
+.flow-step-editor-row input,
+.flow-step-editor-row select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font: inherit;
+  font-size: 10px;
+}
+
+.flow-editor-fields textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.flow-step-editor-row .text-button {
+  padding: 5px 3px;
+  white-space: nowrap;
+  font-size: 9px;
+}
+
+.case-catalog-block .panel-head { margin-bottom: 10px; }
+
+.case-data-table th,
+.case-data-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 9px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.case-data-table th { color: var(--muted); background: var(--surface-soft); font-size: 8px; }
+
+.case-data-table tr:last-child td { border-bottom: 0; }
+
+.queue-meta .secondary-button { margin-left: auto; }
+
+body.modal-open { overflow: hidden; }
+
+.ticket-field input,
+.ticket-field select,
+.ticket-field textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.ticket-field textarea { resize: vertical; line-height: 1.5; }
+
+.ticket-field input[readonly] { color: var(--muted); }
+
+@media (max-width: 1260px) {
+  .topbar { grid-template-columns: 1fr auto; }
+  .main-nav { grid-row: 2; grid-column: 1 / -1; width: 100%; margin-top: 7px; }
+  .scope-strip { grid-column: 2; grid-row: 1; }
+  .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 980px) {
+  .topbar { padding: 9px 18px; }
+  .home-head,
+  .app-heading { align-items: flex-start; flex-direction: column; }
+  .home-meta { justify-items: start; }
+  .filter-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .drilldown-basis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 10px 12px 0;
+  }
+  .scope-strip {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+  .main-nav {
+    grid-row: auto;
+    justify-content: flex-start;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 7px 7px 0 0;
+  }
+  .main-nav a { padding: 7px 9px; font-size: 11px; }
+  .home-head { margin-bottom: 15px; }
+  .home-head h1,
+  .app-heading h1 { font-size: 25px; }
+  .heading-actions { justify-content: flex-start; }
+  .filter-bar,
+  .dashboard-filters { grid-template-columns: 1fr 1fr; }
+  .knowledge-actions .text-button { margin-left: 0; }
+  .process-mode-switch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+  .process-mode-switch button { justify-content: center; padding: 5px 7px; font-size: 10px; }
+  .modal-actions button { width: 100%; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .drilldown-basis { grid-template-columns: 1fr; }
+  .kpi-card strong { font-size: 22px; }
+  .donut-wrap { grid-template-columns: 1fr; justify-items: center; }
+  .legend-list { width: 100%; }
+  .data-foot { flex-direction: column; gap: 3px; }
+  .search-input .primary-button { grid-column: 1 / -1; }
+}
+
+html[data-only] .main-nav {
+  display: none;
+}
+
+html[data-only] .brand {
+  pointer-events: none;
+  cursor: default;
+}
+
+html[data-only="workspace"] #view-home > .home-head,
+html[data-only="workspace"] #view-home > .app-grid {
+  display: none;
+}
+
+html[data-only="workspace"] #view-home > .todo-panel {
+  margin-top: 0;
+}
+
+html[data-only] .back-link[data-open-app] {
+  display: none;
+}
+
+html[data-only][data-only-detour="1"] .back-link[data-open-app] {
+  display: inline-flex;
+}
+/* 这一页的排行项名字比设备名长（「设备巡检 Agent」「AOC / DAC 线缆」），
+   58px 的名字列会把每行挤成两行 —— 只在这一页放宽，不动公共样式。 */
+.bar-list .bar-row { grid-template-columns: 116px 1fr 68px; }
+.bar-list .bar-row small { grid-column: 2 / 4; }
+@media (max-width: 720px) { .bar-list .bar-row { grid-template-columns: 92px 1fr 60px; } }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="返回应用中心">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>
+        <strong>中际旭创 经营看板</strong>
+        <small>经营管理层</small>
+      </span>
+    </a>
+    <nav class="main-nav" aria-label="应用导航">
+      <a href="index.html">应用中心</a>
+      <a href="finance.html">财务 Agent</a>
+      <a href="dashboard.html" class="is-active">经营看板</a>
+    </nav>
+    <div class="scope-strip" aria-label="当前数据范围">
+      <span class="status-dot"></span>
+      <span>经营管理层</span>
+      <span class="demo-tag">示例数据</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="view" aria-labelledby="dashboard-title">
+      <div class="app-heading">
+        <div>
+          <button class="back-link" type="button" onclick="location.href='index.html'">← 返回应用中心</button>
+          <p class="eyebrow">MANAGEMENT VIEW · AI 用量 · 销售漏斗 · 销售排行</p>
+          <h1 id="dashboard-title">经营看板 · 经营管理层</h1>
+          <p id="viewDesc">三块看板：AI 在组织里被谁用、生意从线索走到成交漏在哪、钱是谁带回来的</p>
+        </div>
+        <div class="heading-actions">
+          <span class="demo-tag">全部为示例数据</span>
+        </div>
+      </div>
+
+      <section class="panel" id="scopeNote" style="padding:15px 17px;margin-bottom:13px">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">SCOPE · 这块看板是给谁看的</span>
+            <h2 style="font-size:15px">受众：经营管理层（总经理、分管副总、销售负责人）</h2>
+          </div>
+          <span class="pending-pill">口径已写明</span>
+        </div>
+        <p style="margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.75">
+          这块看板回答经营管理层的三个问题：<strong>AI 到底被谁在用、用得多深</strong>；
+          <strong>生意从线索走到成交，漏在哪一环</strong>；<strong>钱是谁、靠哪条产品线带回来的</strong>。
+          设备开机率、工单闭环那些是工厂运营层的指标，<strong>不在这块看板里</strong> —— 换一个受众就该换一套问题，
+          把设备看板原样搬过来只会让管理层看不到自己要的东西。
+        </p>
+        <div class="drilldown-basis" style="margin-top:12px">
+          <div><span>时间口径</span><strong>AI 用量＝本月至今（9/1–9/16）；销售＝2026 Q3 累计</strong></div>
+          <div><span>金额口径</span><strong>成交额＝已签合同含税额（万元）；回款＝已到账</strong></div>
+          <div><span>勾稽关系</span><strong>漏斗末环单数 ＝ 排行榜单数合计 ＝ 86 单；金额同口径对齐</strong></div>
+          <div><span>数据性质</span><strong>示例数据 · 未接入真实业务系统 · 不作为既定事实</strong></div>
+        </div>
+      </section>
+
+      <div class="process-mode-switch dashboard-view-switch" role="tablist" aria-label="看板">
+        <button class="is-active" type="button" role="tab" aria-selected="true" data-board="ai">① AI 用量榜</button>
+        <button type="button" role="tab" aria-selected="false" data-board="funnel">② 销售漏斗</button>
+        <button type="button" role="tab" aria-selected="false" data-board="rank">③ 销售排行榜</button>
+      </div>
+
+      <section class="dashboard-filters" id="dashFilters" aria-label="看板筛选条件"></section>
+
+      <section class="kpi-grid" id="kpiGrid" aria-label="核心经营指标"></section>
+
+      <div class="dashboard-grid">
+        <section class="panel trend-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">TREND</span>
+              <h2 id="trendTitle">趋势</h2>
+            </div>
+            <div style="text-align:right">
+              <strong id="trendValue" style="font-size:20px"></strong>
+              <p id="trendDelta" class="chart-caption" style="margin:2px 0 0"></p>
+            </div>
+          </div>
+          <div class="line-chart" id="lineChart"></div>
+        </section>
+
+        <section class="panel distribution-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">STRUCTURE</span>
+              <h2 id="donutTitle">结构分布</h2>
+            </div>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut" id="statusDonut"><span id="statusTotal"></span><small id="statusUnit"></small></div>
+            <div class="legend-list" id="statusLegend"></div>
+          </div>
+        </section>
+
+        <section class="panel utilization-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">RANKING</span>
+              <h2 id="barsTitle">排行</h2>
+            </div>
+            <span class="chart-caption" id="barsCaption"></span>
+          </div>
+          <div class="bar-list" id="barList"></div>
+        </section>
+
+        <section class="panel task-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">HIGHLIGHT</span>
+              <h2 id="taskTitle">要盯的几件事</h2>
+            </div>
+          </div>
+          <div class="task-metrics" id="taskMetrics"></div>
+          <p class="chart-caption" id="taskNote" style="margin:10px 0 0"></p>
+        </section>
+      </div>
+
+      <section class="panel drilldown-panel" id="dashboardDrilldown">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">DRILL DOWN</span>
+            <h2 id="drilldownTitle">明细</h2>
+          </div>
+          <span class="count-badge" id="drilldownCount"></span>
+        </div>
+        <div class="table-wrap" id="drilldownTable"></div>
+        <div class="drilldown-basis" id="drilldownBasis"></div>
+      </section>
+
+      <p class="data-foot">
+        <span>中际旭创 · AI Native 组织建设｜演示环境示例数据，未接入真实业务系统。</span>
+        <span>真实接入前所有数据仅用于演示，不作为任何既定事实；未确认的字段统一标注待确认。</span>
+      </p>
+    </section>
+  </main>
+</div>
+<script>
+/* ── 演示数据集（示例数据）────────────────────────────────────────────
+   受众换成经营管理层，问题也跟着换：AI 被谁用、生意漏在哪、钱是谁带回来的。
+   页面上所有指标、趋势、结构、排行、明细都是从下面这几份数据实时算出来的，
+   不是写死在 HTML 里的数字 —— 改一行数据，四块图一起跟着变。
+
+   🔴 三份数据互相勾稽，别单独改一处：
+      漏斗末环「成交 86 单」＝ 销售人员榜单数合计 ＝ 产品线榜单数合计；
+      成交额 38,200 万 ＝ 销售人员榜合计 ＝ 产品线榜合计。
+      改了一处不改另一处，看板自己就会打自己的脸。 */
+
+var DAY_LABELS = ["09-10", "09-11", "09-12", "09-13", "09-14", "09-15", "09-16"];
+var MONTH_LABELS = ["4 月", "5 月", "6 月", "7 月", "8 月", "9 月"];
+
+/* ① AI 用量（本月至今 9/1–9/16，Token 单位：万） */
+var AGENTS = [
+  { name: "财务 Agent",     dept: "财务部",   tokens: 1286, calls: 4820, mom: +18.2, owner: "小霞" },
+  { name: "设备巡检 Agent", dept: "生产制造", tokens: 964,  calls: 6310, mom: +9.4,  owner: "宋允" },
+  { name: "销售助手 Agent", dept: "销售部",   tokens: 872,  calls: 5140, mom: +31.6, owner: "陆文韬" },
+  { name: "质量分析 Agent", dept: "质量部",   tokens: 631,  calls: 2760, mom: +4.1,  owner: "周叙" },
+  { name: "供应链协同 Agent", dept: "供应链", tokens: 508,  calls: 3190, mom: -6.3,  owner: "何知远" },
+  { name: "人事 Agent",     dept: "人力资源", tokens: 347,  calls: 1880, mom: +12.8, owner: "小霞" },
+  { name: "研发文档 Agent", dept: "研发中心", tokens: 296,  calls: 1240, mom: +2.5,  owner: "赵砚" },
+  { name: "客服工单 Agent", dept: "销售部",   tokens: 214,  calls: 2430, mom: +44.7, owner: "田嘉禾" }
+];
+var AI_TREND = [298, 315, 342, 361, 289, 334, 351];   /* 近 7 天 Token 消耗（万） */
+var AI_DAYS_ELAPSED = 16;                              /* 本月至今天数，用来算日均 */
+
+/* ② 销售漏斗（2026 Q3 累计） */
+var FUNNEL = [
+  { stage: "线索",      n: 1840, days: 3,  owner: "市场部 + 客服工单 Agent" },
+  { stage: "商机",      n: 612,  days: 11, owner: "区域销售" },
+  { stage: "方案 / 打样", n: 268,  days: 24, owner: "销售 + 研发中心" },
+  { stage: "报价",      n: 154,  days: 9,  owner: "销售 + 财务部" },
+  { stage: "成交",      n: 86,   days: 6,  owner: "销售负责人" }
+];
+var DEAL_TREND = [4120, 4860, 5380, 6240, 8150, 9450]; /* 近 6 个月成交额（万） */
+
+/* ③ 销售排行（2026 Q3 累计，金额单位：万元） */
+var SELLERS = [
+  { name: "陆文韬", area: "华东",       deals: 16, amount: 8640, paid: 7120, target: 9000 },
+  { name: "韩梦琪", area: "海外-北美",  deals: 11, amount: 7980, paid: 6050, target: 8500 },
+  { name: "邵启明", area: "华南",       deals: 13, amount: 5720, paid: 4960, target: 6000 },
+  { name: "温若琳", area: "华北",       deals: 12, amount: 4860, paid: 4210, target: 5200 },
+  { name: "贺兰舟", area: "海外-欧洲",  deals: 9,  amount: 4320, paid: 3180, target: 4800 },
+  { name: "崔行知", area: "华东",       deals: 10, amount: 3150, paid: 2870, target: 3600 },
+  { name: "田嘉禾", area: "华南",       deals: 8,  amount: 2240, paid: 1990, target: 2600 },
+  { name: "宋亦白", area: "华北",       deals: 7,  amount: 1290, paid: 1140, target: 1800 }
+];
+var PRODUCTS = [
+  { name: "800G 光模块",     deals: 31, amount: 18900, gross: 27.4 },
+  { name: "400G 光模块",     deals: 24, amount: 9640,  gross: 22.1 },
+  { name: "相干光模块",       deals: 12, amount: 5280,  gross: 31.6 },
+  { name: "AOC / DAC 线缆",  deals: 12, amount: 2760,  gross: 15.8 },
+  { name: "光器件与配件",     deals: 7,  amount: 1620,  gross: 19.2 }
+];
+var CUSTOMERS = [
+  { name: "北美 H 客户（超大规模云）", amount: 6480, deals: 9,  area: "海外-北美" },
+  { name: "国内 T 客户",             amount: 4920, deals: 11, area: "华东" },
+  { name: "欧洲 N 运营商",            amount: 3760, deals: 6,  area: "海外-欧洲" },
+  { name: "国内 A 客户",             amount: 3180, deals: 8,  area: "华南" },
+  { name: "北美 M 客户",             amount: 2640, deals: 5,  area: "海外-北美" }
+];
+
+var PALETTE = ["#176b61", "#315f93", "#a86512", "#237a4b", "#7a5aa1", "#b06a4a", "#5f7a8c", "#8fa8a3"];
+</script>
+<script>
+/* ── 经营看板 · 经营管理层 ────────────────────────────────────────────
+   三块看板共用同一套面板（KPI / 趋势 / 结构 / 排行 / 要盯的几件事 / 明细），
+   切换的是喂进去的数据和标题，不是另画三张页面 —— 少一套壳就少一处会走样的地方。 */
+
+function $(sel) { return document.querySelector(sel); }
+function esc(s) { var d = document.createElement("div"); d.textContent = String(s == null ? "" : s); return d.innerHTML; }
+function pct(a, b) { return b ? (a / b * 100) : 0; }
+function fmtPct(v, d) { return v.toFixed(d == null ? 1 : d) + "%"; }
+function fmtNum(n) { return Number(n).toLocaleString("zh-CN"); }
+function sum(arr) { return arr.reduce(function (s, x) { return s + x; }, 0); }
+/** 万元 → 看得懂的说法：一万万＝一亿，超过一亿就换成「亿」，不让人自己数零。 */
+function wan(v) { return v >= 10000 ? (v / 10000).toFixed(2) + " 亿" : fmtNum(v) + " 万"; }
+
+var state = { board: "ai", area: "全部区域", dept: "全部部门" };
+
+/* ── 三块看板各自的「怎么算」───────────────────────────────────────── */
+
+var BOARDS = {
+  /* ① AI 用量榜 —— 参考二元空间的 Token 消耗排行榜 */
+  ai: {
+    title: "AI 用量榜 · 本月至今",
+    desc: "AI 到底被谁在用、用得多深 —— 按 Agent 和部门两个维度看",
+    filterKey: "dept",
+    filterLabel: "部门",
+    filterValues: function () {
+      var s = ["全部部门"];
+      AGENTS.forEach(function (a) { if (s.indexOf(a.dept) < 0) s.push(a.dept); });
+      return s;
+    },
+    rows: function () {
+      return AGENTS.filter(function (a) { return state.dept === "全部部门" || a.dept === state.dept; });
+    },
+    kpi: function (rows) {
+      var t = sum(rows.map(function (a) { return a.tokens; }));
+      var c = sum(rows.map(function (a) { return a.calls; }));
+      var hours = Math.round(c * 3.5 / 60);
+      return [
+        { label: "Token 消耗（本月至今）", value: fmtNum(t) + " 万", change: "日均 " + fmtNum(Math.round(t / AI_DAYS_ELAPSED)) + " 万 · 9/1–9/16 共 " + AI_DAYS_ELAPSED + " 天", source: "网关计量" },
+        { label: "调用次数", value: fmtNum(c) + " 次", change: "单次均耗 " + (c ? (t * 10000 / c).toFixed(0) : "—") + " tokens", source: "网关计量" },
+        { label: "在岗 Agent", value: rows.length + " 个", change: "覆盖 " + new Set(rows.map(function (a) { return a.dept; })).size + " 个部门", source: "组织花名册" },
+        { label: "折算替代工时", value: fmtNum(hours) + " h", change: "≈ " + (hours / 169).toFixed(1) + " 人月（按 169 h/人月）", source: "口径：单次 3.5 分钟 · 待确认" }
+      ];
+    },
+    trend: function () { return { title: "Token 消耗趋势（近 7 天）", labels: DAY_LABELS, values: AI_TREND, unit: " 万", caption: "万 tokens / 天" }; },
+    donut: function (rows) {
+      var by = {};
+      rows.forEach(function (a) { by[a.dept] = (by[a.dept] || 0) + a.tokens; });
+      return { title: "部门用量结构", unit: "万 tokens",
+        items: Object.keys(by).map(function (k) { return { label: k, value: by[k] }; }).sort(function (x, y) { return y.value - x.value; }) };
+    },
+    bars: function (rows) {
+      var max = Math.max.apply(null, rows.map(function (a) { return a.tokens; }));
+      return { title: "Agent 用量排行", caption: "按本月 Token 消耗",
+        items: rows.slice().sort(function (x, y) { return y.tokens - x.tokens; }).map(function (a) {
+          return { label: a.name, ratio: pct(a.tokens, max), value: fmtNum(a.tokens) + " 万",
+                   note: a.dept + " · 环比 " + (a.mom >= 0 ? "+" : "") + a.mom + "%" };
+        }) };
+    },
+    highlight: function (rows) {
+      var sorted = rows.slice().sort(function (x, y) { return y.mom - x.mom; });
+      var down = rows.filter(function (a) { return a.mom < 0; });
+      var top = rows.slice().sort(function (x, y) { return y.tokens - x.tokens; })[0];
+      return { items: [
+        { label: "增得最快", value: sorted[0] ? "+" + sorted[0].mom + "%" : "—", note: sorted[0] ? sorted[0].name : "" },
+        { label: "用量第一", value: top ? fmtNum(top.tokens) + " 万" : "—", note: top ? top.name + " · 占 " + fmtPct(pct(top.tokens, sum(rows.map(function (a) { return a.tokens; }))), 0) : "" },
+        { label: "在往下走", value: down.length + " 个", note: down.length ? down.map(function (a) { return a.name; }).join("、") + " 要问问为什么" : "没有下滑的 Agent" },
+        { label: "按人看的活跃度", value: "待接入", note: "谁在用、用了几次这一维度还没接进来，先不编" }
+      ], note: "「折算替代工时」用的是单次 3.5 分钟这个假设，真实接入前只能当量级看，不当结论用。" };
+    },
+    table: function (rows) {
+      return { title: "Agent 明细", count: rows.length + " 个 Agent",
+        head: ["Agent", "所属部门", "负责人", "Token（万）", "调用次数", "单次均耗", "环比"],
+        body: rows.slice().sort(function (x, y) { return y.tokens - x.tokens; }).map(function (a) {
+          return ['<span class="table-device">' + esc(a.name) + "</span>", esc(a.dept), esc(a.owner),
+                  fmtNum(a.tokens), fmtNum(a.calls), (a.tokens * 10000 / a.calls).toFixed(0),
+                  (a.mom >= 0 ? "+" : "") + a.mom + "%"];
+        }),
+        basis: [["统计口径", "网关侧计量，含输入 + 输出 token"], ["时间范围", "2026-09-01 → 2026-09-16"],
+                ["单次均耗", "Token 总量 ÷ 调用次数"], ["数据性质", "示例数据 · 未接入真实业务系统"]] };
+    }
+  },
+
+  /* ② 销售漏斗 —— 线索到成交，每一环漏了多少 */
+  funnel: {
+    title: "销售漏斗 · 2026 Q3",
+    desc: "生意从线索走到成交，漏在哪一环",
+    filterKey: null,
+    rows: function () { return FUNNEL; },
+    kpi: function () {
+      var first = FUNNEL[0], last = FUNNEL[FUNNEL.length - 1];
+      var amount = sum(SELLERS.map(function (s) { return s.amount; }));
+      var worst = worstStep();
+      return [
+        { label: "新增线索", value: fmtNum(first.n) + " 条", change: "Q3 累计", source: "市场 + 客服工单 Agent" },
+        { label: "成交", value: last.n + " 单", change: "合同额 " + wan(amount), source: "合同系统" },
+        { label: "线索 → 成交", value: fmtPct(pct(last.n, first.n), 1), change: "整体转化率", source: "按同一批线索追踪" },
+        { label: "最窄的一环", value: fmtPct(worst.rate, 1), change: worst.from + " → " + worst.to, source: "环比转化率最低处" }
+      ];
+    },
+    trend: function () { return { title: "成交额趋势（近 6 个月）", labels: MONTH_LABELS, values: DEAL_TREND, unit: " 万", caption: "万元 / 月" }; },
+    donut: function () {
+      /* 🔴 别画成「各环节数量」的饼：线索⊃商机⊃方案⊃报价⊃成交 是层层包含的，
+         加起来 2,960 这个数不存在于世界上。能画饼的只有**互斥**的分解 ——
+         每一环流失掉多少 + 最后成交多少，这五块相加才正好是线索总量。 */
+      var items = [];
+      for (var i = 1; i < FUNNEL.length; i++) {
+        items.push({ label: "卡在 " + FUNNEL[i - 1].stage + " → " + FUNNEL[i].stage, value: FUNNEL[i - 1].n - FUNNEL[i].n });
+      }
+      items.push({ label: "走到成交", value: FUNNEL[FUNNEL.length - 1].n });
+      return { title: "这 " + fmtNum(FUNNEL[0].n) + " 条线索最后去了哪", unit: "条线索", items: items };
+    },
+    bars: function () {
+      var first = FUNNEL[0].n;
+      return { title: "漏斗（宽度＝占线索总量）", caption: "括号内是上一环到这一环的转化率",
+        items: FUNNEL.map(function (f, i) {
+          var prev = i ? FUNNEL[i - 1].n : f.n;
+          return { label: f.stage, ratio: pct(f.n, first), value: fmtNum(f.n),
+                   note: (i ? "转化 " + fmtPct(pct(f.n, prev), 1) + " · " : "起点 · ") + "平均停留 " + f.days + " 天 · " + f.owner };
+        }) };
+    },
+    highlight: function () {
+      var worst = worstStep();
+      var cycle = sum(FUNNEL.map(function (f) { return f.days; }));
+      var amount = sum(SELLERS.map(function (s) { return s.amount; }));
+      return { items: [
+        { label: "最该修的一环", value: worst.from + " → " + worst.to, note: "转化率 " + fmtPct(worst.rate, 1) + "，是全链路最低" },
+        { label: "平均成交周期", value: cycle + " 天", note: "五环停留天数相加" },
+        { label: "进了商机没成交", value: fmtNum(FUNNEL[1].n - FUNNEL[4].n) + " 个", note: "流失的和还在跑的都在里面，这份数据分不开" },
+        { label: "单均合同额", value: wan(Math.round(amount / FUNNEL[4].n)), note: "成交额 ÷ 成交单数" }
+      ], note: "漏斗末环「成交 " + FUNNEL[4].n + " 单」和销售排行榜的单数合计是同一个数，两块看板对得上。" };
+    },
+    table: function () {
+      var first = FUNNEL[0].n;
+      return { title: "各环节明细", count: FUNNEL.length + " 个环节",
+        head: ["环节", "数量", "占线索总量", "环比转化率", "平均停留", "主要负责人"],
+        body: FUNNEL.map(function (f, i) {
+          var prev = i ? FUNNEL[i - 1].n : f.n;
+          return ['<span class="table-device">' + esc(f.stage) + "</span>", fmtNum(f.n), fmtPct(pct(f.n, first), 1),
+                  i ? fmtPct(pct(f.n, prev), 1) : "—", f.days + " 天", esc(f.owner)];
+        }),
+        basis: [["统计口径", "同一批线索向后追踪，不是各环节当期新增"], ["时间范围", "2026 Q3 累计"],
+                ["停留天数", "进入该环节到离开该环节的中位数"], ["数据性质", "示例数据 · 未接入真实业务系统"]] };
+    }
+  },
+
+  /* ③ 销售排行榜 —— 钱是谁、靠哪条产品线带回来的 */
+  rank: {
+    title: "销售排行榜 · 2026 Q3",
+    desc: "钱是谁、靠哪条产品线、从哪个客户带回来的",
+    filterKey: "area",
+    filterLabel: "区域",
+    filterValues: function () {
+      var s = ["全部区域"];
+      SELLERS.forEach(function (x) { if (s.indexOf(x.area) < 0) s.push(x.area); });
+      return s;
+    },
+    rows: function () {
+      return SELLERS.filter(function (x) { return state.area === "全部区域" || x.area === state.area; });
+    },
+    kpi: function (rows) {
+      var amount = sum(rows.map(function (x) { return x.amount; }));
+      var paid = sum(rows.map(function (x) { return x.paid; }));
+      var target = sum(rows.map(function (x) { return x.target; }));
+      var deals = sum(rows.map(function (x) { return x.deals; }));
+      return [
+        { label: "成交额", value: wan(amount), change: deals + " 单 · 单均 " + wan(Math.round(amount / (deals || 1))), source: "合同系统" },
+        { label: "已回款", value: wan(paid), change: "回款率 " + fmtPct(pct(paid, amount), 1), source: "财务 Agent" },
+        { label: "目标完成率", value: fmtPct(pct(amount, target), 1), change: "目标 " + wan(target), source: "年度经营目标" },
+        { label: "人均成交", value: wan(Math.round(amount / (rows.length || 1))), change: rows.length + " 名销售在册", source: "销售花名册" }
+      ];
+    },
+    trend: function () { return { title: "成交额趋势（近 6 个月）", labels: MONTH_LABELS, values: DEAL_TREND, unit: " 万", caption: "万元 / 月" }; },
+    donut: function () {
+      return { title: "产品线结构", unit: "万元",
+        items: PRODUCTS.map(function (p) { return { label: p.name, value: p.amount }; }) };
+    },
+    bars: function (rows) {
+      var max = Math.max.apply(null, rows.map(function (x) { return x.amount; }));
+      return { title: "销售人员排行", caption: "按 Q3 成交额",
+        items: rows.slice().sort(function (x, y) { return y.amount - x.amount; }).map(function (x) {
+          return { label: x.name, ratio: pct(x.amount, max), value: wan(x.amount),
+                   note: x.area + " · " + x.deals + " 单 · 目标完成 " + fmtPct(pct(x.amount, x.target), 0) };
+        }) };
+    },
+    highlight: function (rows) {
+      var sorted = rows.slice().sort(function (x, y) { return y.amount - x.amount; });
+      var miss = rows.filter(function (x) { return x.amount < x.target * 0.9; });
+      var lowPaid = rows.slice().sort(function (x, y) { return pct(x.paid, x.amount) - pct(y.paid, y.amount); })[0];
+      var top = PRODUCTS[0];
+      return { items: [
+        { label: "第一名", value: sorted[0] ? sorted[0].name : "—", note: sorted[0] ? wan(sorted[0].amount) + " · " + sorted[0].area : "" },
+        { label: "没到 90% 目标", value: miss.length + " 人", note: miss.length ? miss.map(function (x) { return x.name; }).join("、") : "全员达标" },
+        { label: "回款最慢", value: lowPaid ? fmtPct(pct(lowPaid.paid, lowPaid.amount), 1) : "—", note: lowPaid ? lowPaid.name + " · 差 " + wan(lowPaid.amount - lowPaid.paid) + " 没回来" : "" },
+        { label: "最挣钱的产品线", value: top.name, note: "毛利率 " + top.gross + "% · " + wan(top.amount) }
+      ], note: "单数合计 " + sum(rows.map(function (x) { return x.deals; })) + " 单；全区域口径下与销售漏斗末环的 " + FUNNEL[4].n + " 单一致。" };
+    },
+    table: function (rows) {
+      return { title: "销售人员明细", count: rows.length + " 名销售",
+        head: ["销售", "区域", "成交单数", "成交额（万）", "已回款（万）", "回款率", "目标（万）", "完成率"],
+        body: rows.slice().sort(function (x, y) { return y.amount - x.amount; }).map(function (x) {
+          return ['<span class="table-device">' + esc(x.name) + "</span>", esc(x.area), x.deals,
+                  fmtNum(x.amount), fmtNum(x.paid), fmtPct(pct(x.paid, x.amount), 1),
+                  fmtNum(x.target), fmtPct(pct(x.amount, x.target), 1)];
+        }),
+        basis: [["金额口径", "已签合同含税额；回款＝已到账"], ["时间范围", "2026 Q3 累计"],
+                ["客户 Top 5", CUSTOMERS.map(function (c) { return c.name + " " + wan(c.amount); }).join("；")],
+                ["数据性质", "示例数据 · 未接入真实业务系统"]] };
+    }
+  }
+};
+
+/** 漏斗里转化率最低的那一环。「最该修的一环」和 KPI 都用它，只算一次。 */
+function worstStep() {
+  var worst = { rate: 101, from: "", to: "" };
+  for (var i = 1; i < FUNNEL.length; i++) {
+    var r = pct(FUNNEL[i].n, FUNNEL[i - 1].n);
+    if (r < worst.rate) worst = { rate: r, from: FUNNEL[i - 1].stage, to: FUNNEL[i].stage };
+  }
+  return worst;
+}
+
+/* ── 画 ───────────────────────────────────────────────────────────── */
+
+function renderFilters(b) {
+  var box = $("#dashFilters");
+  if (!b.filterKey) { box.innerHTML = '<span class="filter-note">这块看板是全公司口径，没有可切的筛选。</span>'; return; }
+  var vals = b.filterValues();
+  box.innerHTML = '<label class="compact-field"><span>' + esc(b.filterLabel) + "</span>"
+    + '<select class="filter-select" id="mainFilter">'
+    + vals.map(function (v) { return '<option' + (state[b.filterKey] === v ? " selected" : "") + ">" + esc(v) + "</option>"; }).join("")
+    + "</select></label>"
+    + '<span class="filter-result" id="filterResult"></span>'
+    + '<button class="filter-reset" type="button" id="filterReset">重置</button>';
+  $("#mainFilter").addEventListener("change", function (e) { state[b.filterKey] = e.target.value; render(); });
+  $("#filterReset").addEventListener("click", function () { state[b.filterKey] = vals[0]; render(); });
+}
+
+function renderKpi(cards) {
+  $("#kpiGrid").innerHTML = cards.map(function (c) {
+    return '<button class="kpi-card" type="button">'
+      + "<span>" + esc(c.label) + "</span><strong>" + esc(c.value) + "</strong><small>" + esc(c.change) + "</small>"
+      + '<span class="kpi-source"><span>' + esc(c.source) + "</span><span>示例数据</span></span></button>";
+  }).join("");
+}
+
+function renderLineChart(values, labels, unit) {
+  var width = 620, height = 200, pad = { top: 18, right: 18, bottom: 28, left: 46 };
+  if (!values.length) { $("#lineChart").innerHTML = ""; return; }
+  var span = Math.max.apply(null, values) - Math.min.apply(null, values);
+  var grain = Math.max(1, Math.pow(10, Math.floor(Math.log(Math.max(span, 1)) / Math.LN10)));
+  var floor = Math.floor((Math.min.apply(null, values) - grain / 2) / grain) * grain;
+  var ceiling = Math.ceil((Math.max.apply(null, values) + grain / 2) / grain) * grain;
+  var range = Math.max(1, ceiling - floor);
+  var step = values.length > 1 ? (width - pad.left - pad.right) / (values.length - 1) : 0;
+  var xs = values.map(function (_, i) { return pad.left + i * step; });
+  var ys = values.map(function (v) { return pad.top + (ceiling - v) * ((height - pad.top - pad.bottom) / range); });
+  var points = xs.map(function (x, i) { return x + "," + ys[i]; }).join(" ");
+  var area = pad.left + "," + (height - pad.bottom) + " " + points + " " + (width - pad.right) + "," + (height - pad.bottom);
+  $("#lineChart").innerHTML =
+    '<svg viewBox="0 0 ' + width + " " + height + '" role="img" aria-label="趋势图">'
+    + [ceiling, floor + range / 2, floor].map(function (v) {
+        var y = pad.top + (ceiling - v) * ((height - pad.top - pad.bottom) / range);
+        return '<line class="grid-line" x1="' + pad.left + '" y1="' + y + '" x2="' + (width - pad.right) + '" y2="' + y + '"></line>'
+          + '<text class="axis-label" x="2" y="' + (y + 3) + '">' + fmtNum(Math.round(v)) + "</text>";
+      }).join("")
+    + '<polygon class="trend-area" points="' + area + '"></polygon>'
+    + '<polyline class="trend-line" points="' + points + '"></polyline>'
+    + xs.map(function (x, i) {
+        return '<circle class="trend-point" cx="' + x + '" cy="' + ys[i] + '" r="4"><title>'
+          + esc(labels[i]) + "：" + fmtNum(values[i]) + unit + "</title></circle>"
+          + '<text class="axis-label" x="' + x + '" y="' + (height - 7) + '" text-anchor="middle">' + esc(labels[i]) + "</text>";
+      }).join("")
+    + "</svg>";
+}
+
+function renderTrend(t) {
+  $("#trendTitle").textContent = t.title;
+  var last = t.values[t.values.length - 1], prev = t.values.length > 1 ? t.values[t.values.length - 2] : last;
+  $("#trendValue").textContent = fmtNum(last) + t.unit;
+  $("#trendDelta").textContent = t.values.length > 1
+    ? "较上一期 " + (last - prev >= 0 ? "+" : "") + fmtNum(last - prev) + t.unit + "（" + (last - prev >= 0 ? "+" : "") + fmtPct(pct(last - prev, prev), 1) + "）"
+    : "数据点不足，画不出趋势";
+  renderLineChart(t.values, t.labels, t.unit);
+}
+
+function renderDonut(d) {
+  $("#donutTitle").textContent = d.title;
+  var total = sum(d.items.map(function (i) { return i.value; }));
+  var cursor = 0;
+  var stops = d.items.map(function (it, i) {
+    var start = cursor; cursor += pct(it.value, total);
+    return PALETTE[i % PALETTE.length] + " " + start + "% " + cursor + "%";
+  });
+  $("#statusDonut").style.background = stops.length ? "conic-gradient(" + stops.join(",") + ")" : "#e6e9e8";
+  var asYi = d.unit === "万元" && total >= 10000;
+  $("#statusTotal").textContent = asYi ? (total / 10000).toFixed(2) : fmtNum(total);
+  $("#statusUnit").textContent = asYi ? "亿元" : d.unit;
+  $("#statusLegend").innerHTML = d.items.map(function (it, i) {
+    return '<span class="legend-row"><i style="background:' + PALETTE[i % PALETTE.length] + '"></i><span>'
+      + esc(it.label) + "</span><strong>" + fmtNum(it.value) + " · " + fmtPct(pct(it.value, total), 0) + "</strong></span>";
+  }).join("");
+}
+
+function renderBars(b) {
+  $("#barsTitle").textContent = b.title;
+  $("#barsCaption").textContent = b.caption;
+  $("#barList").innerHTML = b.items.map(function (it) {
+    return '<div class="bar-row">'
+      + "<span>" + esc(it.label) + "</span>"
+      + '<span class="bar-track"><span class="bar-fill" style="width:' + it.ratio.toFixed(1) + '%"></span></span>'
+      + "<strong>" + esc(it.value) + "</strong>"
+      + (it.note ? "<small>" + esc(it.note) + "</small>" : "")
+      + "</div>";
+  }).join("");
+}
+
+function renderHighlight(h) {
+  $("#taskMetrics").innerHTML = h.items.map(function (r) {
+    return '<span class="task-metric"><span>' + esc(r.label) + "</span><strong>" + esc(r.value) + "</strong><small>" + esc(r.note) + "</small></span>";
+  }).join("");
+  $("#taskNote").textContent = h.note || "";
+}
+
+function renderTable(t) {
+  $("#drilldownTitle").textContent = t.title;
+  $("#drilldownCount").textContent = t.count;
+  $("#drilldownTable").innerHTML = t.body.length
+    ? "<table><thead><tr>" + t.head.map(function (h) { return "<th>" + esc(h) + "</th>"; }).join("") + "</tr></thead><tbody>"
+      + t.body.map(function (r) { return "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; }).join("")
+      + "</tbody></table>"
+    : '<p class="panel-empty">当前筛选下没有数据。</p>';
+  $("#drilldownBasis").innerHTML = t.basis.map(function (b) {
+    return "<div><span>" + esc(b[0]) + "</span><strong>" + esc(b[1]) + "</strong></div>";
+  }).join("");
+}
+
+function render() {
+  var b = BOARDS[state.board];
+  $("#viewDesc").textContent = b.desc;
+  renderFilters(b);
+  var rows = b.rows();
+  if (b.filterKey && $("#filterResult")) {
+    $("#filterResult").textContent = state[b.filterKey] === b.filterValues()[0]
+      ? "全部 " + rows.length + " 条" : "筛出 " + rows.length + " 条";
+  }
+  renderKpi(b.kpi(rows));
+  renderTrend(b.trend(rows));
+  renderDonut(b.donut(rows));
+  renderBars(b.bars(rows));
+  renderHighlight(b.highlight(rows));
+  renderTable(b.table(rows));
+}
+
+document.querySelectorAll("[data-board]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    state.board = btn.getAttribute("data-board");
+    document.querySelectorAll("[data-board]").forEach(function (x) {
+      var on = x === btn;
+      x.classList.toggle("is-active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>

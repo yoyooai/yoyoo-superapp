@@ -22,12 +22,15 @@
  *     一次**（防 DNS rebinding：注册时是公网地址，调用时 DNS 已经改指向内网），
  *     且关掉自动跟随跳转（跳转目标同样可能是内网）。
  */
-import { randomUUID, randomBytes, createHash, createCipheriv, createDecipheriv } from "node:crypto";
+import { randomUUID, randomBytes, createHash, createHmac, createCipheriv, createDecipheriv } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { send, readJson, clip } from "./http-util.mjs";
 
 const AUTH_TYPES = new Set(["none", "bearer", "header", "basic"]);
+// 🔴 出站请求里这个前缀下的头**一律由服务端写**，任何用户可控的地方都不许占用它
+//    （否则用户把自己的认证头命名成 x-yoyoo-caller，就等于自己给自己签了一张身份）。
+const CALLER_HEADER_PREFIX = "x-yoyoo-";
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 // 🔴 09-03 真撞过：Innovate 桩接了真 LLM 网关生成假设，单次调用实测 9.5s，
 //    10s 的外层超时几乎必炸（代理本身还要再加一跳的开销，撞线概率更高）。
@@ -92,7 +95,7 @@ function isBlockedHostLiteral(hostname) {
  * 永远不传这个参数，默认值是"拦"。测试要用真实 HTTP 往返验证代理逻辑，而真实的
  * 假外部服务只能起在 localhost，不给测试开这个口子就测不了 doCall 的真实网络路径。
  */
-async function assertUrlSafe(rawUrl, allowPrivateHosts = false) {
+export async function assertUrlSafe(rawUrl, allowPrivateHosts = false) {
   let u;
   try {
     u = new URL(rawUrl);
@@ -158,9 +161,16 @@ export function initConnectorSchema(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_connectors_owner ON connectors(owner_uid, updated_at DESC);
   `);
+  // 「把调用者身份转发给这个连接器」——默认 0（关）。
+  // 这是隐私开关，不是功能开关：下游是用户自己注册的第三方系统，
+  // 默认转发等于我们替用户把"谁在用"告诉了别人。所以默认关、一个个开。
+  const cols = db.prepare(`PRAGMA table_info(connectors)`).all().map((c) => c.name);
+  if (!cols.includes("forward_caller")) {
+    db.exec(`ALTER TABLE connectors ADD COLUMN forward_caller INTEGER NOT NULL DEFAULT 0`);
+  }
 }
 
-export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false }) {
+export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false, resolveLenderUid = null, firstPartyHosts = [] }) {
   initConnectorSchema(db);
   const SEAL = loadSealSecret(sealKeyPath);
 
@@ -182,8 +192,29 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     return Buffer.concat([d.update(unb64u(body)), d.final()]).toString("utf8");
   }
 
+  /**
+   * 调用者化名 —— 转发给第三方时用它，**不发我们的真 uid**。
+   *
+   * `HMAC(封装密钥, 连接器id + uid)`：
+   *  · 同一个人在同一个连接器上永远是同一个值 —— 下游才能做"只看轮到我的活"；
+   *  · 换一个连接器就是另一个值 —— 两个第三方拿各自的日志对不上是同一个人；
+   *  · 不可逆 —— 拿到化名也反推不回我们的用户 id。
+   * 这三条缺一条，这个头就从"够用的身份"变成"泄露用户"。
+   */
+  const callerAlias = (connectorId, callerUid) =>
+    createHmac("sha256", SEAL)
+      .update("yoyoo-caller|").update(String(connectorId)).update("|").update(String(callerUid))
+      .digest("base64url").slice(0, 22);
+
+  // 第一方 = 下游就是我们自己的系统（由服务端配置决定，用户改不了）。
+  // 对自己人发真 uid 不构成对外披露，也省掉一层化名映射。
+  const FIRST_PARTY = new Set(
+    (Array.isArray(firstPartyHosts) ? firstPartyHosts : String(firstPartyHosts || "").split(","))
+      .map((h) => String(h).trim().toLowerCase()).filter(Boolean));
+  const isFirstParty = (hostname) => FIRST_PARTY.has(String(hostname).toLowerCase());
+
   const qList = db.prepare(
-    `SELECT id,name,base_url,auth_type,header_name,created_by,created_at,updated_at,
+    `SELECT id,name,base_url,auth_type,header_name,forward_caller,created_by,created_at,updated_at,
             (sealed_secret IS NOT NULL) AS has_secret
        FROM connectors WHERE owner_uid=? ORDER BY updated_at DESC LIMIT 200`);
   const qGet = db.prepare(`SELECT * FROM connectors WHERE id=? AND owner_uid=?`);
@@ -192,6 +223,8 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     `INSERT INTO connectors (id,owner_uid,name,base_url,auth_type,header_name,sealed_secret,created_by,created_at,updated_at)
      VALUES (?,?,?,?,?,?,?,?,?,?)`);
   const qRemove = db.prepare(`DELETE FROM connectors WHERE id=? AND owner_uid=?`);
+  const qSetForward = db.prepare(
+    `UPDATE connectors SET forward_caller=?, updated_at=? WHERE id=? AND owner_uid=?`);
 
   /** 造一个连接器。返回 { status, body }。不抛错——调用方按 http 语义处理。 */
   async function doCreate(ownerUid, { name, base_url, auth_type, secret, header_name }, createdBy, now) {
@@ -201,6 +234,11 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     }
     if (auth_type === "header" && !clip(header_name, 80).trim()) {
       return { status: 400, body: { error: "auth_type=header 时 header_name 必填" } };
+    }
+    // 🔴 用户不能占用调用者身份的头名 —— 占上了就等于自己给自己签身份。
+    if (auth_type === "header" &&
+        clip(header_name, 80).trim().toLowerCase().startsWith(CALLER_HEADER_PREFIX)) {
+      return { status: 400, body: { error: `header_name 不能以 ${CALLER_HEADER_PREFIX} 开头——这个前缀留给服务端写的调用者身份` } };
     }
     if (auth_type !== "none" && !String(secret || "").trim()) {
       return { status: 400, body: { error: "该 auth_type 需要提供 secret" } };
@@ -236,17 +274,30 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     return { status: 200, body: { ok: true } };
   }
 
+  /** 开/关"把调用者身份（化名）转发给这个连接器"。只有 owner 能改。 */
+  function doSetForwardCaller(ownerUid, id, on) {
+    if (typeof on !== "boolean") return { status: 400, body: { error: "forward_caller 必须是 true/false" } };
+    const row = qGet.get(id, ownerUid);
+    if (!row) return { status: 404, body: { error: "not found" } };
+    qSetForward.run(on ? 1 : 0, Date.now(), id, ownerUid);
+    return { status: 200, body: { id, forward_caller: on } };
+  }
+
   /**
    * 代理调用。这是唯一真正发起外部 HTTP 请求、唯一解密凭据的地方。
    * body: { method, path, query?, body? }
    *   path 必须是相对路径（拼在 base_url 后面）——不许调用方指定一个新的 host，
    *   否则"连接器"就形同虚设，等于给了一个任意目标的代理。
    */
-  async function doCall(ownerUid, id, { method, path, query, body: reqBody }, fetchImpl = fetch, now = Date.now()) {
+  async function doCall(ownerUid, id, { method, path, query, body: reqBody }, fetchImpl = fetch, now = Date.now(), callerUid = ownerUid, callerKind = "human") {
+    const rateKey = callerUid;
     const row = qGet.get(id, ownerUid);
     if (!row) return { status: 404, body: { error: "not found" } };
 
-    if (rateLimited(ownerUid, now)) {
+    // 🔴 限流按**发起人**算，不按连接器主人算。连接器随应用出借之后，一个群里
+    //    十个人共用 owner 的额度，任何一个人刷几下就把老板自己锁在门外了——
+    //    限流是"防某个人把代理当免费出口打别人网站"，那就该记在那个人头上。
+    if (rateLimited(rateKey, now)) {
       return { status: 429, body: { error: "调用太频繁，请稍后再试" } };
     }
 
@@ -284,6 +335,23 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
       else if (row.auth_type === "basic") headers.authorization = `Basic ${Buffer.from(secretPlain, "utf8").toString("base64")}`;
       secretPlain = null; // 用完即弃，不留在闭包变量里
     }
+
+    // ── 调用者身份：服务端派生，调用方伪造不了（TD-313）──────────────
+    // 顺序很重要：**最后**写，且先抹掉同前缀的任何头。认证头的名字是用户填的，
+    // 新注册的已经拦住了，但库里可能有旧记录——所以这里再抹一次，不靠上游守规矩。
+    for (const k of Object.keys(headers)) {
+      if (k.toLowerCase().startsWith(CALLER_HEADER_PREFIX)) delete headers[k];
+    }
+    if (isFirstParty(target.hostname)) {
+      headers["x-yoyoo-caller"] = String(callerUid);
+      headers["x-yoyoo-caller-scope"] = "uid";     // 真名：下游是我们自己的系统
+      headers["x-yoyoo-caller-kind"] = callerKind; // human = 人点的，ai = AI 代调
+    } else if (row.forward_caller) {
+      headers["x-yoyoo-caller"] = callerAlias(id, callerUid);
+      headers["x-yoyoo-caller-scope"] = "alias";   // 化名：第三方永远只拿得到这个
+      headers["x-yoyoo-caller-kind"] = callerKind;
+    }
+    // 没开转发、又不是第一方 ⇒ 一个字节都不发。
 
     let fetchBody;
     if (reqBody !== undefined && m !== "GET" && m !== "DELETE") {
@@ -337,9 +405,47 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     return { status: 200, body: { status: res.status, content_type: contentType, body: parsed } };
   }
 
+  /** 这个连接器是不是他自己的。用于判断要不要走"随应用出借"那条路。 */
+  function ownedBy(uid, id) {
+    return !!qGet.get(id, uid);
+  }
+
+  /**
+   * 连接器随应用一起出借 —— 09-04 苏白实测出来的洞。
+   *
+   * 现象：同事能只读打开分享给群的工作台，但六个模块全是 0 + "加载失败"。
+   * 根因不在分享（分享是通的），在**取数**：连接器按 `owner_uid` 严格私有，
+   * 页面里每一次 `connectorCall` 都拿访问者自己的身份去查，一律 404。
+   * 也就是说，我们把"能看见这个应用"和"这个应用能取到数"当成了两件事，
+   * 而对用户来说它们是同一件——打得开却全是空白，比打不开更让人以为东西坏了。
+   *
+   * 所以：**应用被借出去的时候，它自己用的那几个连接器要跟着一起借出去。**
+   *
+   * 边界（这三条缺一条这里就变成越权通道，不是可选的收紧）：
+   *  ①访问者必须真能看这个应用 —— 用他自己的 token 走宿主群成员校验（`canView`），
+   *    服务端不持特权凭据，宿主不可达就是拒。
+   *  ②连接器必须**确实是这个应用在用的**（id 出现在该应用蓝图里）——否则就成了
+   *    "借一个应用的壳，调 owner 名下任意连接器"，那是拿别人的密钥打别人的系统。
+   *  ③蓝图只有 owner 能写。所以"借哪几个连接器"这件事**始终由 owner 决定**，
+   *    访问者无法自己扩大范围。
+   *
+   * 换来的代价，写在这里不装看不见：群成员因此能以 owner 的身份对这些连接器
+   * 发起**写**请求（批准报价那一类）。这是 09-04 苏白明确要的"权限先开到最大"，
+   * 且正是协作本身要的动作；收紧的口子留在 `resolveLenderUid` 这一个函数里——
+   * 以后要按动作分级（读放行/写要本人），改这一处就够，不用翻遍调用点。
+   */
+  async function lenderFor({ connectorId, viewerUid, viewerToken, appId, spaceId }) {
+    if (!resolveLenderUid || !appId || !viewerToken) return null;
+    try {
+      return await resolveLenderUid({ connectorId, viewerUid, viewerToken, appId, spaceId });
+    } catch {
+      return null; // 判定不了就是不放行
+    }
+  }
+
   // ── 路由：用户面（session token，uid 来自宿主 whoami）─────────
   // 挂在 `${root}/connectors` 下。
-  async function handle(req, res, { path, url, uid, now, root }) {
+  async function handle(req, res, { path, url, uid, now, root, token, spaceId = "" }) {
     const rel = path.slice(`${root}/connectors`.length);
     if (rel === "" || rel === "/") {
       if (req.method === "GET") { const r = doList(uid); return send(res, r.status, r.body), true; }
@@ -357,10 +463,25 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     if (action === "call") {
       if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
       let body; try { body = await readJson(req); } catch (e) { return send(res, 400, { error: String(e.message || e) }), true; }
-      const r = await doCall(uid, id, body, undefined, now);
+      // 自己的连接器走自己的身份；不是自己的，看能不能"随应用出借"（见 lenderFor）。
+      let actingUid = uid;
+      if (!ownedBy(uid, id)) {
+        const lender = await lenderFor({
+          connectorId: id, viewerUid: uid, viewerToken: token, appId: body.app_id, spaceId,
+        });
+        if (lender) actingUid = lender;
+      }
+      const r = await doCall(actingUid, id, body, undefined, now, uid);
+      return send(res, r.status, r.body), true;
+    }
+    if (!action && req.method === "PATCH") {
+      // 只有 owner 能开关"转发调用者身份"——借用者改不了别人的隐私设置。
+      let body; try { body = await readJson(req); } catch (e) { return send(res, 400, { error: String(e.message || e) }), true; }
+      const r = doSetForwardCaller(uid, id, body.forward_caller);
       return send(res, r.status, r.body), true;
     }
     if (!action && req.method === "DELETE") {
+      // 🔴 删除永远只认自己 —— 出借只出借"用"，不出借"改/删"。
       const r = doRemove(uid, id);
       return send(res, r.status, r.body), true;
     }
@@ -402,7 +523,7 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
       let body; try { body = await readJson(req); } catch (e) { return send(res, 400, { error: String(e.message || e) }), true; }
       const auth = await authFor(body.owner_uid);
       if (!auth.ok) return send(res, auth.status, { error: auth.error }), true;
-      const r = await doCall(auth.ownerUid, id, body, undefined, now);
+      const r = await doCall(auth.ownerUid, id, body, undefined, now, auth.ownerUid, "ai");
       return send(res, r.status, r.body), true;
     }
     if (!action && req.method === "DELETE") {
@@ -414,5 +535,8 @@ export function createConnectors({ db, sealKeyPath, allowPrivateHosts = false })
     return false;
   }
 
-  return { handle, handleBot, _internals: { doCreate, doList, doRemove, doCall, assertUrlSafe, seal, unseal } };
+  return {
+    handle, handleBot,
+    _internals: { doCreate, doList, doRemove, doCall, doSetForwardCaller, callerAlias, isFirstParty, assertUrlSafe, seal, unseal, ownedBy, lenderFor },
+  };
 }

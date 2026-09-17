@@ -34,7 +34,7 @@ const SYSTEM_PROMPT = `你是一个界面生成器。用户描述一个需求，
 - divider: {"type":"divider"}
 - script:  {"type":"script","code":"一段 JavaScript"} —— 只有当用户明确要求"接自己的外部系统/
   数据"时才用这个，且必须已经知道一个真实存在的连接器 id（不知道就不要瞎编一个）。
-  代码跑在隔离沙盒里，用 Yoyoo.connectorCall(connectorId, {method,path,query,body})
+  代码跑在隔离沙盒里，用 Eryuan.connectorCall(connectorId, {method,path,query,body})
   （返回 Promise，resolve 出 {status,body}）去读写外部数据，用 document.getElementById("app")
   拿到根节点自己画东西，不要假设有任何其它全局变量或框架。
 

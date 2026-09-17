@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="中际旭创 AIOS 设备域四应用">
+  <title>中际旭创 AIOS · 设备域</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="返回应用中心">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>
+          <strong>中际旭创 AIOS</strong>
+          <small>设备域</small>
+        </span>
+      </a>
+      <nav class="main-nav" aria-label="应用导航">
+        <a href="#home" data-nav="home">应用中心</a>
+        <a href="#expert" data-nav="expert">设备专家</a>
+        <a href="#process" data-nav="process">设备流程</a>
+        <a href="#dashboard" data-nav="dashboard">数据看板</a>
+        <a href="#graph" data-nav="graph">知识图谱</a>
+      </nav>
+      <div class="scope-strip" aria-label="当前数据范围">
+        <span class="status-dot"></span>
+        <span>厂区 A · 800G 产线</span>
+        <span class="demo-tag">示例数据</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="view-home" class="view" aria-labelledby="home-title">
+        <div class="home-head">
+          <div>
+            <p class="eyebrow">EQUIPMENT INTELLIGENCE</p>
+            <h1 id="home-title">设备域 AIOS 应用中心</h1>
+            <p>设备专家负责问，设备流程负责做，数据看板负责看，知识图谱负责查——四个应用共用同一套设备对象和工单流转规则。</p>
+          </div>
+          <div class="home-meta">
+            <span>今天</span>
+            <strong>10:30 更新</strong>
+            <small>厂区 A 数据已同步</small>
+          </div>
+        </div>
+
+        <div class="app-grid" aria-label="四个设备应用">
+          <button class="app-card app-card--expert" type="button" data-open-app="expert">
+            <span class="app-index">01</span>
+            <span class="app-symbol">问</span>
+            <strong>设备专家</strong>
+            <span>问 · 像现场工程师一样回答，先给判断，再把依据摊开放到卡片里。</span>
+            <small>AR-203 张力波动 → 看判断 → 展开依据 → 提工单</small>
+            <span class="card-action">进入应用 <b aria-hidden="true">→</b></span>
+          </button>
+          <button class="app-card app-card--process" type="button" data-open-app="process">
+            <span class="app-index">02</span>
+            <span class="app-symbol">做</span>
+            <strong>设备流程</strong>
+            <span>做 · 按预设流程执行工单，明确哪一步由运维 Agent 做、哪一步由现场确认。</span>
+            <small>接单 → 人机泳道推进 → 下一步</small>
+            <span class="card-action">进入应用 <b aria-hidden="true">→</b></span>
+          </button>
+          <button class="app-card app-card--dashboard" type="button" data-open-app="dashboard">
+            <span class="app-index">03</span>
+            <span class="app-symbol">看</span>
+            <strong>数据看板</strong>
+            <span>看 · 看 800G 产线开机率、利用率、产能达成、保养及时率和待处理工单。</span>
+            <small>选周期 → 看指标 → 下钻 AR-203</small>
+            <span class="card-action">进入应用 <b aria-hidden="true">→</b></span>
+          </button>
+          <button class="app-card app-card--graph" type="button" data-open-app="graph">
+            <span class="app-index">04</span>
+            <span class="app-symbol">查</span>
+            <strong>知识图谱</strong>
+            <span>查 · 从设备、模块、标准、关系多个入口查稳定映射和原始资料，也负责知识录入。</span>
+            <small>AR-203 → 产线 / 模块 / Owner → 标准与资料</small>
+            <span class="card-action">进入应用 <b aria-hidden="true">→</b></span>
+          </button>
+        </div>
+
+        <section class="todo-panel" aria-labelledby="todo-title">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">MY WORKSPACE</span>
+              <h2 id="todo-title">我的工作台</h2>
+            </div>
+            <span class="pending-pill">与我相关 <b id="homeRelatedCount">4</b> 项</span>
+          </div>
+          <div class="workspace-grid">
+            <section class="workspace-column">
+              <div class="workspace-column-head">
+                <strong>待我确认</strong>
+                <span class="count-badge" id="homeConfirmCount">2</span>
+              </div>
+              <div class="workspace-list" id="homeConfirmList"></div>
+            </section>
+            <section class="workspace-column">
+              <div class="workspace-column-head">
+                <strong>与我相关 · 进行中</strong>
+                <span class="count-badge" id="homeRunningCount">3</span>
+              </div>
+              <div class="workspace-list" id="homeRunningList"></div>
+            </section>
+            <section class="workspace-column">
+              <div class="workspace-column-head">
+                <strong>最近查看的设备</strong>
+                <span class="count-badge" id="homeDeviceCount">3</span>
+              </div>
+              <div class="workspace-list" id="homeDeviceList"></div>
+            </section>
+          </div>
+          <div class="workspace-all-head">
+            <div>
+              <span class="section-kicker">ALL IN PROGRESS</span>
+              <strong>全部进行中任务</strong>
+            </div>
+            <small>点击任务查看当前描述和人机泳道</small>
+          </div>
+          <div class="workspace-all-list" id="homeAllFlows"></div>
+        </section>
+      </section>
+
+      <section id="view-expert" class="view" aria-labelledby="expert-title" hidden>
+        <div class="app-heading">
+          <div>
+            <button class="back-link" type="button" data-open-app="home">← 应用中心</button>
+            <p class="eyebrow">ASK · EVIDENCE · ACTION</p>
+            <h1 id="expert-title">设备专家</h1>
+            <p>设备相关的问题，从这里开始</p>
+          </div>
+          <div class="heading-actions">
+            <label class="compact-field">
+              <span>提问范围</span>
+              <select id="expertScope">
+                <option>全部设备</option>
+                <option selected>AR-203</option>
+                <option>800G 产线</option>
+                <option>800G 测试设备</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="expert-layout">
+          <aside class="panel recent-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">RECENT</span>
+                <h2>最近的对话</h2>
+              </div>
+              <span class="count-badge">5</span>
+            </div>
+            <div class="recent-list">
+              <button class="recent-item is-active" type="button" data-question="AR-203 最近运行情况怎么样？">
+                <span class="recent-state answered">已回答</span>
+                <strong>最近运行情况怎么样？</strong>
+                <small>AR-203 · 10:28</small>
+              </button>
+              <button class="recent-item" type="button" data-question="AR-203 的日常点检重点是什么？">
+                <span class="recent-state answered">已回答</span>
+                <strong>日常点检重点是什么？</strong>
+                <small>AR-203 · 昨天</small>
+              </button>
+              <button class="recent-item" type="button" data-question="AR-203 出现张力波动，建议怎么处理？">
+                <span class="recent-state answered">已回答</span>
+                <strong>张力波动建议怎么处理？</strong>
+                <small>AR-203 · 09:52</small>
+              </button>
+              <button class="recent-item" type="button" data-question="800G 产线要新增张力控制设备，选型要注意什么？">
+                <span class="recent-state answered">已回答</span>
+                <strong>新增设备选型要注意什么？</strong>
+                <small>800G 产线 A · 昨天</small>
+              </button>
+              <button class="recent-item" type="button" data-question="下月 800G 产线增加 10 万只/月，怎么排产并评估设备缺口？">
+                <span class="recent-state answered">已回答</span>
+                <strong>扩产后怎么排产与补齐缺口？</strong>
+                <small>800G 产线 A · 昨天</small>
+              </button>
+            </div>
+            <div class="boundary-note">
+              <strong>能力边界</strong>
+              <p>只回答已经提出的问题，不主动发现异常，也不直接控制设备。反馈和工单在这里提交，知识维护在知识图谱。</p>
+            </div>
+          </aside>
+
+          <section class="panel chat-panel">
+            <div class="chat-toolbar">
+              <div class="assistant-identity expert-persona">
+                <span class="assistant-avatar">旭</span>
+                <div>
+                  <span class="persona-name"><strong>设备工程师 · 阿旭</strong></span>
+                  <small>当前在看：厂区 A / 800G 产线 · AR-203</small>
+                </div>
+              </div>
+              <span class="answer-state"><i></i> 在线 · 刚刚核对过 SOP</span>
+            </div>
+            <div class="quick-questions" id="quickQuestions"></div>
+            <div class="conversation" id="conversation" aria-live="polite"></div>
+            <form class="ask-form" id="askForm">
+              <textarea id="askInput" rows="2" aria-label="输入设备问题" placeholder="把你现场遇到的情况说给我，例如：AR-203 张力波动该怎么处理？"></textarea>
+              <button class="primary-button" type="submit">问阿旭</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-process" class="view" aria-labelledby="process-title" hidden>
+        <div class="app-heading">
+          <div>
+            <button class="back-link" type="button" data-open-app="home">← 应用中心</button>
+            <p class="eyebrow">STAGE · STEP · HANDOFF</p>
+            <h1 id="process-title">设备流程</h1>
+            <p>按预设流程执行、确认和归档设备工作</p>
+          </div>
+        </div>
+
+        <div class="process-mode-switch" role="tablist" aria-label="设备流程视图">
+          <button class="is-active" type="button" role="tab" aria-selected="true" data-process-view="library">预设流程库</button>
+          <button type="button" role="tab" aria-selected="false" data-process-view="workorder">当前执行 <b id="workorderCount">5</b></button>
+          <button type="button" role="tab" aria-selected="false" data-process-view="queue">任务队列 <b id="queueCount">10</b></button>
+          <button type="button" role="tab" aria-selected="false" data-process-view="tasks">日常任务 <b>5</b></button>
+        </div>
+
+        <section class="panel process-mode-panel" id="flowLibraryPanel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">PRESET WORKFLOWS</span>
+              <h2>流程库</h2>
+            </div>
+            <button class="secondary-button compact" type="button" id="createFlowButton">＋ 新建流程</button>
+          </div>
+          <div class="flow-library" id="flowLibrary"></div>
+        </section>
+
+        <section class="panel process-mode-panel" id="taskQueuePanel" hidden>
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">AGENT QUEUE</span>
+              <h2>任务队列</h2>
+            </div>
+            <span class="pending-pill">3 个运行中 · 7 个等待</span>
+          </div>
+          <section class="queue-current" id="queueCurrent"></section>
+          <div class="queue-list" id="queueList"></div>
+        </section>
+
+        <section class="panel process-mode-panel" id="dailyTaskPanel" hidden>
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ROLE-BASED DAILY WORK</span>
+              <h2>由流程直接产生的日常任务</h2>
+              <p class="daily-task-intro">每张卡只保留任务目标、当前环节和还缺什么；进入任务后独立展示泳道。</p>
+            </div>
+          </div>
+          <div class="daily-task-list" id="dailyTaskList"></div>
+        </section>
+
+        <section class="process-board process-mode-panel" id="workorderPanel" hidden>
+          <section id="workorderOverview">
+            <div class="panel-head process-list-head">
+              <div>
+                <span class="section-kicker">CURRENT EXECUTION</span>
+                <h2>当前执行任务</h2>
+              </div>
+              <span class="pending-pill" id="workorderSummaryPill">3 个执行中</span>
+            </div>
+            <div class="process-task-group">
+              <h3>执行中</h3>
+              <div class="process-task-list" id="runningProcessList"></div>
+            </div>
+            <div class="process-task-group">
+              <h3>等待中</h3>
+              <div class="process-task-list" id="waitingProcessList"></div>
+            </div>
+          </section>
+
+          <section id="workorderDetailBlock">
+            <button class="back-link process-detail-back" type="button" id="backToProcessOverview">← 返回当前执行</button>
+            <section class="case-detail-panel" id="caseDetailPanel" hidden></section>
+            <div class="workorder-banner" id="workorderBanner"></div>
+            <div class="board-head">
+              <div>
+                <span class="section-kicker">CURRENT WORKFLOW</span>
+                <h2 id="stageTitle">异常排查</h2>
+                <p id="stageDescription"></p>
+              </div>
+              <div class="legend" aria-label="流程颜色说明">
+                <span><i class="legend-dot human"></i>现场人员确认</span>
+                <span><i class="legend-dot agent"></i>Agent 执行</span>
+                <span><i class="legend-dot done"></i>已完成</span>
+                <span><i class="legend-dot evidence"></i>依据与记录</span>
+              </div>
+            </div>
+            <div class="process-team" id="processTeam" aria-label="本阶段协作成员"></div>
+            <div class="step-axis" id="stepAxis"></div>
+            <div class="swimlane-wrap">
+              <div class="lane-label">
+                <span>真人泳道</span>
+                <small>人工动作与确认</small>
+              </div>
+              <div class="lane-track human-lane" id="humanLane"></div>
+              <div class="lane-label">
+                <span>Agent 泳道</span>
+                <small>整理、分析、生成草稿</small>
+              </div>
+              <div class="lane-track agent-lane" id="agentLane"></div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="drawer step-drawer" id="stepDrawer" aria-labelledby="stepDrawerTitle" aria-hidden="true">
+          <div class="drawer-head">
+            <div>
+              <span class="section-kicker" id="stepDrawerKicker">STEP 01</span>
+              <h2 id="stepDrawerTitle">步骤详情</h2>
+            </div>
+            <button class="icon-button" type="button" data-close-drawer="stepDrawer" aria-label="关闭步骤详情">×</button>
+          </div>
+          <div class="drawer-body" id="stepDrawerBody"></div>
+          <div class="drawer-footer">
+            <button class="secondary-button" type="button" id="stepEvidenceButton">查看原始资料</button>
+            <button class="primary-button" type="button" id="advanceStepButton">确认本步并推进</button>
+            <button class="secondary-button" type="button" id="addFlowStepButton" hidden>＋ 添加环节</button>
+            <button class="primary-button" type="button" id="saveFlowButton" hidden>保存流程</button>
+            <button class="primary-button" type="button" id="openTaskLaneButton" hidden>进入执行泳道</button>
+          </div>
+        </aside>
+      </section>
+
+      <section id="view-dashboard" class="view" aria-labelledby="dashboard-title" hidden>
+        <div id="dashboardOverview">
+        <div class="app-heading">
+          <div>
+            <button class="back-link" type="button" data-open-app="home">← 应用中心</button>
+            <p class="eyebrow">FILTER · METRIC · DRILL DOWN</p>
+            <h1 id="dashboard-title">数据看板</h1>
+            <p>同一份数据换视角看：管理层看结果，工厂看产线对比，设备 Owner 看自己的设备和待办</p>
+          </div>
+          <div class="heading-actions">
+            <span class="freshness">更新于 10:30</span>
+          </div>
+        </div>
+
+        <div class="process-mode-switch dashboard-view-switch" role="tablist" aria-label="看板视角">
+          <button class="is-active" type="button" role="tab" aria-selected="true" data-dashboard-view="management">管理层视角</button>
+          <button type="button" role="tab" aria-selected="false" data-dashboard-view="factory">工厂视角</button>
+          <button type="button" role="tab" aria-selected="false" data-dashboard-view="owner">设备 Owner 视角</button>
+        </div>
+
+        <section class="dashboard-filters" id="dashboardFilters" aria-label="看板筛选条件"></section>
+
+        <section class="panel dashboard-empty" id="dashboardEmpty" hidden aria-live="polite">
+          <h2 id="dashboardEmptyTitle">这个筛选范围里没有设备</h2>
+          <p id="dashboardEmptyHint"></p>
+          <button class="primary-button" type="button" data-board-filter-reset>清除筛选</button>
+        </section>
+
+        <div id="dashboardResult">
+        <section class="kpi-grid" id="kpiGrid" aria-label="核心设备指标"></section>
+
+        <div class="dashboard-grid">
+          <section class="panel trend-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">TREND</span>
+                <h2 id="trendTitle">开机率趋势</h2>
+              </div>
+              <button class="text-button metric-detail" type="button" data-metric="开机率">指标口径</button>
+            </div>
+            <div class="chart-caption"><strong id="trendValue">—</strong><span id="trendDelta"></span></div>
+            <p class="chart-subtitle" id="trendSubtitle"></p>
+            <div class="line-chart" id="lineChart" aria-label="运行率趋势图"></div>
+            <div class="data-foot"><span>口径：运行时长 / 计划可用时长</span><span>来源：设备运行记录</span></div>
+          </section>
+
+          <section class="panel distribution-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">STATUS</span>
+                <h2 id="statusTitle">设备状态分布</h2>
+              </div>
+              <button class="text-button" type="button" data-drill="设备状态">查看明细</button>
+            </div>
+            <div class="donut-wrap">
+              <div class="donut" id="statusDonut"><span><strong id="statusTotal">—</strong><small>设备运行日</small></span></div>
+              <div class="legend-list" id="statusLegend"></div>
+              <p class="panel-empty" id="statusEmpty" hidden></p>
+            </div>
+            <div class="data-foot"><span>口径：所选时间范围内的设备-日状态</span><span>来源：设备运行记录</span></div>
+          </section>
+
+          <section class="panel utilization-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">UTILIZATION</span>
+                <h2 id="barsTitle">产线利用率排行</h2>
+              </div>
+              <button class="text-button metric-detail" type="button" data-metric="利用率">指标口径</button>
+            </div>
+            <div class="bar-list" id="utilizationBars"></div>
+            <p class="panel-empty" id="barsEmpty" hidden></p>
+            <div class="data-foot"><span>口径：实际使用工时 / 可用工时</span><span>来源：生产记录</span></div>
+          </section>
+
+          <section class="panel task-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">TASKS & COST</span>
+                <h2 id="taskTitle">工单与任务</h2>
+              </div>
+              <button class="text-button" type="button" data-drill="待处理工单">查看任务</button>
+            </div>
+            <div class="task-metrics" id="taskMetrics"></div>
+            <div class="data-foot"><span>口径：所选时间范围内的工单与任务记录</span><span>来源：设备流程 / 工单中心</span></div>
+          </section>
+        </div>
+
+        <section class="panel drilldown-panel" id="dashboardDrilldown">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">DRILL DOWN</span>
+              <h2 id="drilldownTitle">运行率 · 设备明细</h2>
+            </div>
+            <button class="text-button" type="button" data-close-drilldown>收起明细</button>
+          </div>
+          <div class="drilldown-basis" id="drilldownBasis"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="deviceTableHead"></thead>
+              <tbody id="deviceTable"></tbody>
+            </table>
+          </div>
+          <p class="panel-empty" id="drilldownEmpty" hidden></p>
+        </section>
+        </div>
+        </div>
+
+        <section class="device-detail-page" id="deviceDetailPage" hidden aria-labelledby="deviceDetailTitle">
+          <div class="device-detail-toolbar">
+            <button class="back-link" type="button" id="backToDashboardButton">← 返回数据看板</button>
+            <div>
+              <span class="section-kicker">DASHBOARD / DEVICE TRACE</span>
+              <strong id="deviceDetailBreadcrumb">数据看板 · 设备详情</strong>
+            </div>
+            <span class="freshness" id="deviceDetailUpdated">更新于 10:30</span>
+          </div>
+          <div id="deviceDetailContent"></div>
+        </section>
+      </section>
+
+      <section id="view-graph" class="view" aria-labelledby="graph-title" hidden>
+        <div class="app-heading graph-heading">
+          <div>
+            <button class="back-link" type="button" data-open-app="home">← 应用中心</button>
+            <p class="eyebrow">SEARCH · RELATION · EVIDENCE</p>
+            <h1 id="graph-title">知识图谱</h1>
+            <p>知识库负责录入和维护，关系查询只展示稳定主数据、映射关系和原始资料</p>
+          </div>
+          <div class="heading-actions">
+            <button class="secondary-button compact" type="button" id="backToExpertButton">← 返回设备专家</button>
+            <button class="secondary-button compact" type="button" id="copyPathButton">复制关系路径</button>
+          </div>
+        </div>
+
+        <section class="graph-search">
+          <div class="graph-mode-switch" role="tablist" aria-label="知识图谱工作模式">
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-graph-view="query">关系查询</button>
+            <button type="button" role="tab" aria-selected="false" data-graph-view="entry">知识库录入</button>
+          </div>
+          <div class="search-input" id="graphQueryMode">
+            <span aria-hidden="true">⌕</span>
+            <input id="graphSearch" type="search" placeholder="搜索设备、机位、功能、人员、流程或 SOP" autocomplete="off">
+            <button class="primary-button" type="button" id="graphSearchButton">搜索</button>
+          </div>
+          <div class="entry-chips" id="entryChips" aria-label="图谱入口类型"></div>
+          <div class="graph-focus-strip" id="graphFocusStrip" aria-label="设备中心节点"></div>
+        </section>
+
+        <div class="graph-layout" id="graphQueryLayout">
+          <aside class="panel graph-filters">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">FILTER</span>
+                <h2>筛选</h2>
+              </div>
+            </div>
+            <fieldset>
+              <legend>节点类型</legend>
+              <label><input type="checkbox" checked data-node-filter="device"> 设备</label>
+              <label><input type="checkbox" checked data-node-filter="function"> 功能模块</label>
+              <label><input type="checkbox" checked data-node-filter="person"> 人员</label>
+              <label><input type="checkbox" checked data-node-filter="agent"> Agent</label>
+              <label><input type="checkbox" checked data-node-filter="process"> 流程</label>
+              <label><input type="checkbox" checked data-node-filter="document"> 标准 / 文档</label>
+              <label><input type="checkbox" checked data-node-filter="spare"> 备件</label>
+              <label><input type="checkbox" checked data-node-filter="location"> 机位</label>
+              <label><input type="checkbox" checked data-node-filter="supplier"> 供应商</label>
+              <label><input type="checkbox" checked data-node-filter="line"> 产线</label>
+            </fieldset>
+            <label class="filter-select"><span>厂区 / 产线</span><select><option>厂区 A / 全部产线</option><option>800G 产线 A</option><option>800G 产线 B</option></select></label>
+            <label class="filter-select"><span>设备类型</span><select><option>全部类型</option><option>张力控制设备</option></select></label>
+            <label class="filter-select"><span>资料类型</span><select><option>全部资料</option><option>设备主数据</option><option>SOP / 标准</option><option>厂家原始资料</option></select></label>
+            <label class="filter-select"><span>数据来源</span><select><option>全部来源</option><option>SOP</option><option>设备台账</option><option>业务记录</option></select></label>
+            <label class="confirm-check"><input type="checkbox"> 仅看已确认</label>
+          </aside>
+
+          <section class="panel graph-canvas-panel">
+            <div class="graph-toolbar">
+              <div>
+                <span class="section-kicker">RELATION MAP</span>
+                <h2 id="graphMapTitle">AR-203 · 稳定关系图</h2>
+              </div>
+              <div class="graph-tools">
+                <button type="button" id="zoomOutButton" aria-label="缩小">−</button>
+                <button type="button" id="resetGraphButton">重置</button>
+                <button type="button" id="zoomInButton" aria-label="放大">＋</button>
+                <button type="button" id="collapseGraphButton">收起</button>
+              </div>
+            </div>
+            <div class="graph-legend">
+              <span><i class="node-dot device"></i>设备</span>
+              <span><i class="node-dot function"></i>功能</span>
+              <span><i class="node-dot person"></i>人员</span>
+              <span><i class="node-dot agent"></i>Agent</span>
+              <span><i class="node-dot process"></i>流程</span>
+              <span><i class="node-dot document"></i>文档</span>
+              <span><i class="node-dot spare"></i>备件 / 供应</span>
+              <span><i class="node-dot location"></i>机位</span>
+              <span class="dashed-key">虚线：待确认</span>
+            </div>
+            <div class="graph-stage" id="graphStage">
+              <svg id="graphSvg" viewBox="0 0 1000 560" role="img" aria-label="知识图谱关系图"></svg>
+            </div>
+            <p class="graph-hint">初始仅显示 AR-203、AR-204、LR-205；点击设备或下属节点逐层展开，再次点击可收起。最后点击路径及直接关系会高亮，其余节点半透明。</p>
+          </section>
+
+          <aside class="panel graph-detail" id="graphDetail"></aside>
+        </div>
+
+        <div class="knowledge-entry-layout" id="knowledgeEntryLayout" hidden>
+          <section class="panel knowledge-editor">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">KNOWLEDGE INTAKE</span>
+                <h2 id="knowledgeFormTitle">录入一条设备知识</h2>
+              </div>
+              <span class="pending-pill">提交后进入审核</span>
+            </div>
+            <form id="knowledgeForm" class="knowledge-form">
+              <div class="form-grid">
+                <label><span>知识类型</span><select id="knowledgeType"><option>SOP</option><option>设备资料</option><option>流程规范</option><option>供应商资料</option><option>操作记录</option></select></label>
+                <label><span>版本号</span><input id="knowledgeVersion" value="V0.1" required></label>
+                <label class="span-2"><span>标题</span><input id="knowledgeTitle" placeholder="例如：AR-203 日常点检 SOP" required></label>
+                <label><span>关联对象</span><input id="knowledgeObject" value="AR-203" placeholder="设备 / 功能 / 产线 / 流程"></label>
+                <label><span>数据来源</span><select id="knowledgeSource"><option>文档上传</option><option>设备手册</option><option>现场记录</option><option>供应商资料</option></select></label>
+                <label><span>适用范围</span><input id="knowledgeScope" value="厂区 A / 800G 产线 A"></label>
+                <label><span>知识责任人</span><input id="knowledgeOwner" value="待确认"></label>
+                <label class="span-2"><span>知识摘要</span><textarea id="knowledgeSummary" rows="4" placeholder="写清适用条件、关键步骤、必须人工确认的内容"></textarea></label>
+                <label class="span-2"><span>待确认项</span><textarea id="knowledgeIssues" rows="2" placeholder="没有确认的信息不要写成既定事实"></textarea></label>
+                <div class="file-field span-2">
+                  <span>原始资料</span>
+                  <input id="knowledgeFile" type="file" hidden>
+                  <button type="button" class="secondary-button" id="knowledgeFileButton">选择文件</button>
+                  <small id="knowledgeFileName">尚未选择文件</small>
+                </div>
+              </div>
+              <div class="knowledge-actions">
+                <button class="secondary-button" type="submit" data-entry-action="draft">保存草稿</button>
+                <button class="primary-button" type="submit" data-entry-action="review">提交待审核</button>
+                <button class="text-button" type="button" id="resetKnowledgeButton">清空表单</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="panel knowledge-recent-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">RECENT KNOWLEDGE</span>
+                <h2>最近录入</h2>
+              </div>
+              <span class="count-badge" id="knowledgeCount">3</span>
+            </div>
+            <div class="knowledge-entry-list" id="knowledgeEntryList"></div>
+            <div class="knowledge-status-legend">
+              <span><i class="published"></i>已发布</span>
+              <span><i class="review"></i>待审核</span>
+              <span><i class="draft"></i>草稿</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="modal-backdrop" id="ticketModal" role="dialog" aria-modal="true" aria-labelledby="ticketModalTitle" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <span class="section-kicker">CREATE WORK ORDER</span>
+            <h2 id="ticketModalTitle">提交运维工单</h2>
+          </div>
+          <button class="modal-close" type="button" id="ticketCancelButton" aria-label="关闭">×</button>
+        </div>
+        <p class="modal-intro" id="ticketModalIntro">确认下面四项信息后提交。工单提交后会按预设规则自动进入匹配的流程。</p>
+        <div class="ticket-fields">
+          <label class="ticket-field"><span>设备</span><input id="ticketDevice" value="AR-203" readonly></label>
+          <label class="ticket-field"><span>紧急程度</span>
+            <select id="ticketUrgency">
+              <option>一般</option>
+              <option selected>较高</option>
+              <option>紧急</option>
+            </select>
+          </label>
+          <label class="ticket-field span-2"><span>问题描述</span><textarea id="ticketProblem" rows="2">AR-203 最近出现张力波动，需要排查原因</textarea></label>
+          <label class="ticket-field span-2"><span>现象影响</span><textarea id="ticketImpact" rows="2">张力波动导致测试数据不稳定，当前未停机，无人员受伤</textarea></label>
+        </div>
+        <div class="ticket-match">
+          <span>匹配流程</span>
+          <strong id="ticketMatchFlow">设备运维｜异常排查流程（预设）</strong>
+          <small id="ticketMatchDescription">按设备 + 问题类型自动匹配；由设备运维 Agent 负责接单与推进</small>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" id="ticketCancelButtonBottom">取消</button>
+          <button class="primary-button" type="button" id="ticketSubmitButton">提交工单</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./demo-data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

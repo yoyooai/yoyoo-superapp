@@ -12,6 +12,8 @@
  * 都会拒的错误，让作者在存进库那一刻就发现，而不是等真正发送时才报错。
  */
 
+import { gateCard } from "./design-gate.mjs";
+
 // 与 octo-connector/src/card.mjs 的 LIMITS 保持同一份数字（那边写的是宿主实测值）。
 export const CARD_LIMITS = {
   payloadBytes: 512 * 1024,
@@ -62,7 +64,7 @@ function countNodesAndDepth(card) {
 /**
  * 入库前的最后一道门。返回 { ok:true, card } 或 { ok:false, error }。不抛错。
  */
-export function normalizeCardForStore(raw) {
+export function normalizeCardForStore(raw, opts = {}) {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error: "card 必须是一个 JSON 对象" };
   }
@@ -84,6 +86,7 @@ export function normalizeCardForStore(raw) {
     if (typeof raw.template_ref !== "string" || !raw.template_ref.trim()) {
       return { ok: false, error: "template_ref 必须是非空字符串" };
     }
+    // 模板引用不带内容，没有可查的样式 —— 直接放行，不假装检查过。
     return { ok: true, card: raw };
   }
 
@@ -92,5 +95,12 @@ export function normalizeCardForStore(raw) {
   }
   const shape = countNodesAndDepth(raw);
   if (!shape.ok) return shape;
-  return { ok: true, card: raw };
+
+  // 🔴 设计闸（09-15 接上）。卡片的判据不是 CSS 那套（AdaptiveCard 里没有 CSS），
+  //    是**枚举**：color/style 落不到宿主那几档，宿主静默忽略渲染成默认色 ——
+  //    作者以为设了颜色其实没设。详见 design-gate.mjs 开头。
+  //    `opts.prev` = 前一版卡片：不传＝新建＝严格档；传了＝更新＝棘轮。
+  const g = gateCard(raw, opts.prev);
+  if (!g.ok) return { ok: false, error: g.error };
+  return { ok: true, card: raw, ratchet: g.ratchet };
 }

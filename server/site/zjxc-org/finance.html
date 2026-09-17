@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>中际旭创 财务 Agent</title>
+  <style>
+    :root{color-scheme:light;--ink:#27243a;--muted:#746e91;--line:#e7e2f4;--bg:#f4f2fb;
+      --surface:#fff;--accent:#6c5ce7;--accent-weak:#eeeaff}
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+      font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+    body{display:flex;flex-direction:column}
+    header{height:64px;flex:0 0 64px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 18px;
+      box-shadow:0 4px 20px rgba(73,56,140,.06);position:relative;z-index:2}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6c5ce7,#9d8bf3);
+      color:#fff;display:grid;place-items:center;font-weight:800;flex:0 0 34px}
+    .brand b{display:block;font-size:14px}
+    .brand span{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+    nav{display:flex;gap:8px;align-items:center}
+    nav button{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;
+      padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+    nav button.active{border-color:#cfc6f8;background:var(--accent-weak);color:var(--accent)}
+    .tools{display:flex;align-items:center;gap:8px;white-space:nowrap}
+    .home{display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+      border:1px solid var(--line);background:var(--surface);color:var(--accent);border-radius:10px;
+      padding:9px 13px;font-size:12px;font-weight:700}
+    .home:hover{background:var(--accent-weak)}
+    .demo{display:inline-flex;align-items:center;border:1px solid #edcf98;background:#fff1d8;
+      color:#a86512;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700}
+    main{flex:1;min-height:0;padding:12px}
+    iframe{display:block;width:100%;height:100%;border:0;border-radius:14px;background:#fff;
+      box-shadow:0 12px 36px rgba(73,56,140,.12)}
+    @media(max-width:980px){
+      header{height:auto;flex:0 0 auto;padding:10px 12px;align-items:flex-start;flex-direction:column}
+      nav{width:100%;overflow-x:auto;padding-bottom:2px}
+      main{padding:8px}
+      iframe{border-radius:10px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="mark">财</div>
+      <div><b>中际旭创 财务 Agent</b><span>账务归集 · 费用审核 · 报表口径 · 成本与产线</span></div>
+    </div>
+    <nav aria-label="页面切换">
+      <button type="button" class="active" data-page="1">总览 · 财务 Agent 看板</button>
+      <button type="button" data-page="2">财务 Agent 管理台</button>
+      <button type="button" data-page="3">费用与报销</button>
+      <button type="button" data-page="4">口径与规则</button>
+      <button type="button" data-page="5">凭证文件中心</button>
+    </nav>
+    <div class="tools">
+      <span class="demo">示例数据</span>
+      <a class="home" href="index.html">← 返回应用中心</a>
+    </div>
+  </header>
+  <main><iframe id="frame" src="finance-1.html" title="总览 · 财务 Agent 看板"></iframe></main>
+  <script>
+    var frame = document.getElementById("frame");
+    var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-page]"));
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        var page = button.getAttribute("data-page");
+        buttons.forEach(function (item) { item.classList.toggle("active", item === button); });
+        frame.src = "finance-" + page + ".html";
+        frame.title = button.textContent.trim();
+        window.scrollTo(0, 0);
+      });
+    });
+  </script>
+</body>
+</html>

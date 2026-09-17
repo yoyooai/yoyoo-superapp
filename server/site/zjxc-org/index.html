@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>中际旭创 · AI Native 组织建设</title>
+<style>
+:root{color-scheme:light;--ink:#27243a;--muted:#746e91;--line:#e7e2f4;--bg:#f4f2fb;--surface:#fff;
+  --accent:#6c5ce7;--accent-weak:#eeeaff;--green:#0f8a6a;--green-weak:#e6f6f0;
+  --amber:#a86512;--amber-weak:#fff1d8}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);padding:40px 20px 56px;
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.wrap{max-width:900px;margin:0 auto}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+h1{margin:0 0 6px;font-size:24px;letter-spacing:-.2px}
+p.sub{margin:0;color:var(--muted);font-size:13px;max-width:560px;line-height:1.75}
+.demo{display:inline-flex;align-items:center;border:1px solid #edcf98;background:var(--amber-weak);
+  color:var(--amber);border-radius:8px;padding:6px 11px;font-size:11px;font-weight:700;white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:26px}
+@media(max-width:760px){.cards{grid-template-columns:minmax(0,1fr)}}
+a.card{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:18px;padding:22px 22px 18px;text-decoration:none;color:inherit;min-width:0;
+  box-shadow:0 10px 30px rgba(73,56,140,.07);transition:transform .15s,box-shadow .15s,border-color .15s}
+a.card:hover{transform:translateY(-2px);border-color:#cfc6f8;box-shadow:0 18px 44px rgba(73,56,140,.14)}
+a.card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
+  background:var(--accent-weak);color:var(--accent)}
+.mark svg{width:24px;height:24px;stroke:currentColor;stroke-width:1.8;fill:none;
+  stroke-linecap:round;stroke-linejoin:round}
+a.card.green .mark{background:var(--green-weak);color:var(--green)}
+b.title{display:block;margin-top:16px;font-size:17px;line-height:1.35}
+span.role{display:block;margin-top:4px;font-size:12px;color:var(--muted)}
+p.desc{margin:12px 0 0;font-size:13px;line-height:1.75;color:var(--muted);flex:1}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.tag{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:11px;color:var(--muted)}
+.go{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;
+  padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.go b{color:var(--accent);font-size:12px}
+a.card.green .go b{color:var(--green)}
+.foot{margin-top:26px;font-size:11px;color:#a49dbe;line-height:1.7}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>AI Native 组织建设</h1>
+        <p class="sub">把人的组织换成人 + AI 的组织。人负责判断和拍板，Agent 负责归集、初审和出初稿。下面两个应用都可以直接点进去。</p>
+      </div>
+      <span class="demo">示例数据</span>
+    </div>
+
+    <div class="cards">
+      <a class="card" href="finance.html">
+        <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div>
+        <b class="title">财务 Agent</b>
+        <span class="role">AI Native 组织建设 · 财务</span>
+        <p class="desc">把财务这条线交给 AI：账务归集、费用审核与报销、报表口径、成本与产线的关系。人只做判断和拍板。</p>
+        <div class="tags"><span class="tag">总览看板</span><span class="tag">管理台</span><span class="tag">费用与报销</span><span class="tag">口径与规则</span><span class="tag">凭证文件中心</span></div>
+        <div class="go"><span>5 个页面 · 二级抽屉可点开</span><b>进入应用 →</b></div>
+      </a>
+
+      <a class="card green" href="dashboard.html">
+        <div class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+        <b class="title">经营看板</b>
+        <span class="role">AI Native 组织建设 · 工厂运营层</span>
+        <p class="desc">受众是工厂运营层：产能达成、开机率、利用率、工单闭环、人工确认节点，再加一块「人 × AI × 设备」的编成概览。</p>
+        <div class="tags"><span class="tag">三个粒度切换</span><span class="tag">筛选条</span><span class="tag">5 张 KPI</span><span class="tag">趋势 / 分布 / 利用率</span><span class="tag">下钻明细</span></div>
+        <div class="go"><span>1 个页面 · 筛选与下钻均可操作</span><b>进入应用 →</b></div>
+      </a>
+    </div>
+
+    <p class="foot">中际旭创 · AI Native 组织建设｜演示环境示例数据，未接入真实业务系统。真实接入前，所有数据仅用于演示，不作为任何既定事实；未确认的字段统一标注待确认。</p>
+  </div>
+</body>
+</html>

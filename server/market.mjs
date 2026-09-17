@@ -52,6 +52,9 @@ export function initMarketSchema(db) {
       name        TEXT NOT NULL,
       icon        TEXT,
       summary     TEXT NOT NULL,
+      -- 作者把这条应用摆在超级应用页哪一栏（''＝不分区）。取值见 server/app-sections.mjs。
+      -- 跟 name/icon 一样是"上架时拍下来的那一份"：装的人拿到的应该是作者摆的样子。
+      section     TEXT NOT NULL DEFAULT '',
       created_by  TEXT NOT NULL DEFAULT 'human',
       version     INTEGER NOT NULL,
       status      TEXT NOT NULL,
@@ -104,6 +107,11 @@ export function initMarketSchema(db) {
   if (!listingCols.has("kind")) {
     db.exec(`ALTER TABLE listings ADD COLUMN kind TEXT NOT NULL DEFAULT 'app'`);
   }
+  // 🔴 上架条目补 `section`（09-15 夜）。**不回填**：老条目一律留空，
+  //    跟 apps 表补 section 那一条同一个理由 —— 猜一个分区填进去等于替作者做决定。
+  if (!listingCols.has("section")) {
+    db.exec(`ALTER TABLE listings ADD COLUMN section TEXT NOT NULL DEFAULT ''`);
+  }
 
   // cards 表由 index.mjs 建（跟 apps 一样是"我们自己的账本"），这里只负责补市场需要的两列。
   // 建表顺序有硬依赖：createMarket() 必须在 index.mjs 建完 cards 表之后调用，否则这里 ALTER 会报错。
@@ -130,6 +138,21 @@ const BROWSE_ORDER = {
 };
 
 /**
+ * 「这条上架条目指着的那个东西，还在不在」。
+ *
+ * 🔴 双保险的第二道（TD-397）。第一道是 `onAppDeleted` 里的顺带下架 ——
+ *    但它只管**以后**：修复之前已经躺在库里的孤儿条目（作者的应用早删了、
+ *    市场卡片还挂着，点开是空对象/404）一行都不会因为部署新代码而消失。
+ *    所以查询这一侧也挡一道：指不到实物的条目，市场里就当它不存在。
+ *    两道都要，缺一道就会有人看见一张点不开的卡片。
+ * 不用 JOIN 而用 EXISTS：JOIN 会把 app/card 两张表按 kind 分叉写两条 SQL，
+ * 而这里四种排序组合共用同一条。
+ */
+const CONTENT_ALIVE = `(CASE WHEN l.kind = 'card'
+              THEN EXISTS (SELECT 1 FROM cards c WHERE c.id = l.app_id AND c.space_id = l.space_id)
+              ELSE EXISTS (SELECT 1 FROM apps  a WHERE a.id = l.app_id AND a.space_id = l.space_id) END)`;
+
+/**
  * 浏览用的 SQL。**不含 blueprint** —— 逛市场不等于拿走全部实现（§4.1 铁线）。
  *
  * @param {{sort?: string, mine?: boolean}} o
@@ -145,6 +168,7 @@ function browseSql({ sort, mine }) {
              (SELECT i.version FROM installs i WHERE i.listing_id = l.id AND i.uid = ?) AS my_version
         FROM listings l
        WHERE l.space_id = ? AND l.status = 'listed' AND l.kind = ?
+         AND ${CONTENT_ALIVE}
          AND (? = '' OR l.name LIKE ? OR l.summary LIKE ?)
          ${mine ? "AND l.author_uid = ?" : ""}
        ORDER BY ${order}
@@ -154,9 +178,22 @@ function browseSql({ sort, mine }) {
 /**
  * @param {object} o
  * @param {import("node:sqlite").DatabaseSync} o.db
- * @param {string} o.spaceId   本期单 Space；跨 Space 一律 404（§5.5）
+ *
+ * 🔴 **这里没有"本服务器的那个组织"这种东西。**
+ *    每个组织有自己的一份市场，用哪一份由**每次请求**说了算（`x-space-id`，
+ *    由 space.mjs 验过成员资格才到得了这里）。
+ *    09-15 之前不是这样：发布写的是请求那个组织，浏览/详情/安装/下架却查
+ *    服务器启动时配的那一个常量组织。后果是苏白亲眼看到的 ——
+ *    覃彩虹在中际旭创发布的 4 个应用，谁都看不见、装不了、连她自己也下不了架：
+ *    一发出去就掉进黑洞。所以下面每一条读写都必须显式收到 spaceId，
+ *    这个文件里不许再出现"默认组织"。
  */
-export function createMarket({ db, spaceId }) {
+/**
+ * @param {Function} [canOpenApp]  `({appId, uid, token}) => Promise<boolean>` ——
+ *   "这个人打不打得开这个应用"。不传就退化成"只认自己名下的"（老行为）。
+ *   钉位那道检查要用它，理由见下面的调用点。
+ */
+export function createMarket({ db, canOpenApp = null }) {
   initMarketSchema(db);
 
   const q = {
@@ -174,17 +211,17 @@ export function createMarket({ db, spaceId }) {
       `SELECT blueprint FROM listing_versions WHERE listing_id = ? AND version = ?`),
     insertListing: db.prepare(`
       INSERT INTO listings
-        (id, space_id, author_uid, app_id, kind, name, icon, summary, created_by,
+        (id, space_id, author_uid, app_id, kind, name, icon, summary, section, created_by,
          version, status, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,'listed',?,?)`),
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,'listed',?,?)`),
     insertVersion: db.prepare(`
       INSERT INTO listing_versions (listing_id, version, blueprint, note, created_at)
       VALUES (?,?,?,?,?)`),
     bumpVersion: db.prepare(
-      `UPDATE listings SET version=?, name=?, icon=?, updated_at=? WHERE id=?`),
+      `UPDATE listings SET version=?, name=?, icon=?, section=?, updated_at=? WHERE id=?`),
     delist: db.prepare(`UPDATE listings SET status='delisted', updated_at=? WHERE id=?`),
     listingByAppAndAuthor: db.prepare(
-      `SELECT * FROM listings WHERE app_id = ? AND author_uid = ? AND kind = ?`),
+      `SELECT * FROM listings WHERE app_id = ? AND author_uid = ? AND kind = ? AND space_id = ?`),
     installCount: db.prepare(`SELECT COUNT(*) AS n FROM installs WHERE listing_id = ?`),
     myInstall: db.prepare(`SELECT * FROM installs WHERE listing_id = ? AND uid = ?`),
     insertInstall: db.prepare(`
@@ -192,25 +229,26 @@ export function createMarket({ db, spaceId }) {
     setInstallVersion: db.prepare(
       `UPDATE installs SET version=? WHERE listing_id=? AND uid=?`),
 
-    // apps 侧
-    appGet: db.prepare(`SELECT * FROM apps WHERE id = ? AND owner_uid = ?`),
+    // apps 侧 —— 🔴 每条都带 `space_id`：从市场装下来的东西也归当前组织，
+    //    不然装完之后哪个组织都看不见它（用户面的查询是带组织条件的）。
+    appGet: db.prepare(`SELECT * FROM apps WHERE id = ? AND owner_uid = ? AND space_id = ?`),
     appInsertFromMarket: db.prepare(`
-      INSERT INTO apps (id, owner_uid, name, icon, blueprint, created_by,
+      INSERT INTO apps (id, owner_uid, space_id, name, icon, blueprint, section, created_by,
                         created_at, updated_at, source_listing_id, source_version)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`),
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`),
     appSetBlueprint: db.prepare(`
-      UPDATE apps SET blueprint=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=?`),
-    appOwned: db.prepare(`SELECT id FROM apps WHERE id = ? AND owner_uid = ?`),
+      UPDATE apps SET blueprint=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=? AND space_id=?`),
+    appOwned: db.prepare(`SELECT id FROM apps WHERE id = ? AND owner_uid = ? AND space_id = ?`),
 
     // cards 侧 —— 结构跟 apps 侧一一对应，字段名换成 card（不是 blueprint）
-    cardGet: db.prepare(`SELECT * FROM cards WHERE id = ? AND owner_uid = ?`),
+    cardGet: db.prepare(`SELECT * FROM cards WHERE id = ? AND owner_uid = ? AND space_id = ?`),
     cardInsertFromMarket: db.prepare(`
-      INSERT INTO cards (id, owner_uid, name, icon, card, created_by,
+      INSERT INTO cards (id, owner_uid, space_id, name, icon, card, created_by,
                         created_at, updated_at, source_listing_id, source_version)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`),
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)`),
     cardSetCard: db.prepare(`
-      UPDATE cards SET card=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=?`),
-    cardOwned: db.prepare(`SELECT id FROM cards WHERE id = ? AND owner_uid = ?`),
+      UPDATE cards SET card=?, source_version=?, updated_at=? WHERE id=? AND owner_uid=? AND space_id=?`),
+    cardOwned: db.prepare(`SELECT id FROM cards WHERE id = ? AND owner_uid = ? AND space_id = ?`),
 
     backupPut: db.prepare(`
       INSERT INTO app_backups (app_id, blueprint, from_version, created_at)
@@ -254,15 +292,40 @@ export function createMarket({ db, spaceId }) {
   }
 
   /**
+   * 「实物还在不在」的 JS 面 —— 与浏览 SQL 里的 `CONTENT_ALIVE` 是同一条判据，
+   * 一处管列表、一处管详情/安装，改哪一处都要想着另一处。
+   */
+  /*
+   * 🔴 这两条**必须带 `space_id`**（09-15 夜第十一棒补）：上架条目属于哪个组织，
+   *    就只许在那个组织里找它的实物。少了这一句，A 组织的 listing 会因为 B 组织里
+   *    恰好有一个同 id 的应用而被判成"实物还在"—— 组织隔离在这条缝里漏掉。
+   *    守卫在 `server/space-isolation.test.mjs`「源码守卫」那条，删掉当场报红。
+   */
+  const appAlive = db.prepare(`SELECT 1 AS ok FROM apps WHERE id = ? AND space_id = ?`);
+  const cardAlive = db.prepare(`SELECT 1 AS ok FROM cards WHERE id = ? AND space_id = ?`);
+  const contentAlive = (row) =>
+    !!(row.kind === "card"
+      ? cardAlive.get(row.app_id, row.space_id)
+      : appAlive.get(row.app_id, row.space_id));
+
+  /**
    * 取一条对当前用户"可见"的 listing。
    * 🔴 不存在 / 跨 Space / 已下架 一律收敛成 404（§5.4、§5.5）——
    *    区分开来就等于告诉外面"这个 id 存在但你看不到"。
    */
-  function visibleListing(id, { allowDelisted = false } = {}) {
+  /** @param {string} spaceId 本次请求所在的组织 —— 不许省，省了就等于跨组织可见。 */
+  function visibleListing(id, spaceId, { allowDelisted = false } = {}) {
     const row = q.byId.get(id);
     if (!row) return null;
     if (row.space_id !== spaceId) return null;
     if (!allowDelisted && row.status !== "listed") return null;
+    /*
+     * 🔴 实物没了 ＝ 跟下架同一个待遇（TD-397 的第二道保险，同 CONTENT_ALIVE）。
+     *   列表里滤掉、详情/安装这条路也必须一起堵死 —— 只滤列表的话，
+     *   孤儿条目的链接照样打得开，点进去是一张空壳。
+     *   `allowDelisted` 那条路（作者手工下架）故意放行：存量孤儿也得让作者撤得掉。
+     */
+    if (!allowDelisted && !contentAlive(row)) return null;
     return row;
   }
 
@@ -273,21 +336,22 @@ export function createMarket({ db, spaceId }) {
   const STORES = {
     app: {
       contentField: "blueprint",
-      get: (id, uid) => q.appGet.get(id, uid),
-      normalize: (raw) => normalizeForStore(raw),
-      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion) =>
-        q.appInsertFromMarket.run(id, uid, name, icon, contentJson, createdBy, now, now, sourceListingId, sourceVersion),
-      setContent: (contentJson, version, now, id, uid) =>
-        q.appSetBlueprint.run(contentJson, version, now, id, uid),
+      get: (id, uid, spaceId) => q.appGet.get(id, uid, spaceId),
+      normalize: (raw, opts) => normalizeForStore(raw, opts),
+      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion, spaceId, section) =>
+        q.appInsertFromMarket.run(id, uid, spaceId, name, icon, contentJson, section || "", createdBy, now, now, sourceListingId, sourceVersion),
+      setContent: (contentJson, version, now, id, uid, spaceId) =>
+        q.appSetBlueprint.run(contentJson, version, now, id, uid, spaceId),
     },
     card: {
       contentField: "card",
-      get: (id, uid) => q.cardGet.get(id, uid),
-      normalize: (raw) => normalizeCardForStore(raw),
-      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion) =>
-        q.cardInsertFromMarket.run(id, uid, name, icon, contentJson, createdBy, now, now, sourceListingId, sourceVersion),
-      setContent: (contentJson, version, now, id, uid) =>
-        q.cardSetCard.run(contentJson, version, now, id, uid),
+      get: (id, uid, spaceId) => q.cardGet.get(id, uid, spaceId),
+      normalize: (raw, opts) => normalizeCardForStore(raw, opts),
+      // 卡片不分区（卡片不在超级应用页上），最后那个 section 参数收了不用。
+      insertFromMarket: (id, uid, name, icon, contentJson, createdBy, now, sourceListingId, sourceVersion, spaceId) =>
+        q.cardInsertFromMarket.run(id, uid, spaceId, name, icon, contentJson, createdBy, now, now, sourceListingId, sourceVersion),
+      setContent: (contentJson, version, now, id, uid, spaceId) =>
+        q.cardSetCard.run(contentJson, version, now, id, uid, spaceId),
     },
   };
 
@@ -299,7 +363,11 @@ export function createMarket({ db, spaceId }) {
   function snapshot(kind, row) {
     const store = storeFor(kind);
     const raw = JSON.parse(row[store.contentField]);
-    const norm = store.normalize(raw);
+    // 🔴 `prev: raw`（自己跟自己比）不是凑数 —— 照快照**不改动内容**，所以设计闸
+    //    该走棘轮的"持平"档，而不是新建的严格档。少了这一句，线上那 4 个带旧问题的
+    //    应用会在"发布到市场"这一步被拒，且报的是一句作者看不懂的设计违规 ——
+    //    等于用新规则追罚存量内容。棘轮的规矩是只许变少，持平本来就该放行。
+    const norm = store.normalize(raw, { prev: raw });
     if (!norm.ok) return { ok: false, error: `内容不合法：${norm.error}` };
     return { ok: true, content: norm.blueprint ?? norm.card };
   }
@@ -310,7 +378,7 @@ export function createMarket({ db, spaceId }) {
    * 不允许各自抄一遍再各自改坏一处。kind 是 'app' 或 'card'，不认识的 kind 一律当参数错误。
    */
 
-  function doBrowse(kind, uid, { q: rawQIn, page: pageIn, hot, mine }) {
+  function doBrowse(kind, uid, { q: rawQIn, page: pageIn, hot, mine }, spaceId) {
     if (!storeFor(kind)) return { status: 400, body: { error: `unknown kind: ${kind}` } };
     const raw = clip(rawQIn || "", 80).trim();
     const like = `%${raw.replace(/[%_]/g, (m) => `\\${m}`)}%`;
@@ -331,7 +399,7 @@ export function createMarket({ db, spaceId }) {
     return { status: 200, body: { listings: rows, page, page_size: size, sort: hot ? "hot" : "new", mine } };
   }
 
-  function doPublishNew(kind, uid, { appId, summary, note, confirmSensitive }, now) {
+  function doPublishNew(kind, uid, { appId, summary, note, confirmSensitive }, now, spaceId) {
     const store = storeFor(kind);
     if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
     const id64 = clip(appId, 64);
@@ -339,10 +407,10 @@ export function createMarket({ db, spaceId }) {
     if (!id64) return { status: 400, body: { error: "app_id required" } };
     if (!sum) return { status: 400, body: { error: "summary required" } };
 
-    const contentRow = store.get(id64, uid);
+    const contentRow = store.get(id64, uid, spaceId);
     if (!contentRow) return { status: 404, body: { error: "not found" } };
 
-    const already = q.listingByAppAndAuthor.get(id64, uid, kind);
+    const already = q.listingByAppAndAuthor.get(id64, uid, kind, spaceId);
     if (already && already.status === "listed") {
       return { status: 409, body: { error: "这个已经上架了，要更新请发新版本", listing_id: already.id } };
     }
@@ -363,7 +431,7 @@ export function createMarket({ db, spaceId }) {
 
     const id = randomUUID();
     q.insertListing.run(
-      id, spaceId, uid, id64, kind, contentRow.name, contentRow.icon, sum,
+      id, spaceId, uid, id64, kind, contentRow.name, contentRow.icon, sum, contentRow.section || "",
       contentRow.created_by === "ai" ? "ai" : "human", 1, now, now);
     q.insertVersion.run(id, 1, JSON.stringify(snap.content), clip(note, 200) || null, now);
     ratePunch(uid, now);
@@ -371,15 +439,15 @@ export function createMarket({ db, spaceId }) {
     return { status: 201, body: { id, version: 1, status: "listed" } };
   }
 
-  function doPublishVersion(kind, uid, { listingId, note, confirmSensitive }, now) {
+  function doPublishVersion(kind, uid, { listingId, note, confirmSensitive }, now, spaceId) {
     const store = storeFor(kind);
     if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
-    const row = visibleListing(listingId);
+    const row = visibleListing(listingId, spaceId);
     if (!row || row.kind !== kind) return { status: 404, body: { error: "not found" } };
     if (row.author_uid !== uid) return { status: 403, body: { error: "只有作者能发新版" } };
     if (rateExceeded(uid, now)) return { status: 429, body: { error: "发布太频繁，稍等一分钟" } };
 
-    const contentRow = store.get(row.app_id, uid);
+    const contentRow = store.get(row.app_id, uid, spaceId);
     if (!contentRow) return { status: 404, body: { error: "原始内容已不在，无法发新版" } };
     const snap = snapshot(kind, contentRow);
     if (!snap.ok) return { status: 400, body: { error: snap.error } };
@@ -392,16 +460,29 @@ export function createMarket({ db, spaceId }) {
     }
     const next = row.version + 1;
     q.insertVersion.run(listingId, next, JSON.stringify(snap.content), clip(note, 200) || null, now);
-    q.bumpVersion.run(next, contentRow.name, contentRow.icon, now, listingId);
+    q.bumpVersion.run(next, contentRow.name, contentRow.icon, contentRow.section || "", now, listingId);
     ratePunch(uid, now);
     console.log(`[yoyoo-market] new version kind=${kind} listing=${listingId} v${next}`);
     return { status: 201, body: { id: listingId, version: next } };
   }
 
-  function doInstall(kind, uid, listingId, now) {
+  /**
+   * 下架 —— 用户面（DELETE /market/listings/:id）和 bot 面
+   * （POST /apps/for/market/:id/delist）共用这一份判据：**只有作者能下架**。
+   * 下架不删数据：已经装走的人是副本，不受影响（§5.6）。
+   */
+  function doDelist(kind, uid, listingId, now, spaceId) {
+    const row = visibleListing(listingId, spaceId, { allowDelisted: true });
+    if (!row || row.kind !== kind) return { status: 404, body: { error: "not found" } };
+    if (row.author_uid !== uid) return { status: 403, body: { error: "只有作者能下架" } };
+    q.delist.run(now, listingId);
+    return { status: 200, body: { ok: true, status: "delisted" } };
+  }
+
+  function doInstall(kind, uid, listingId, now, spaceId) {
     const store = storeFor(kind);
     if (!store) return { status: 400, body: { error: `unknown kind: ${kind}` } };
-    const row = visibleListing(listingId);
+    const row = visibleListing(listingId, spaceId);
     if (!row || row.kind !== kind) return { status: 404, body: { error: "not found" } };
 
     const mine = q.myInstall.get(listingId, uid);
@@ -409,12 +490,21 @@ export function createMarket({ db, spaceId }) {
 
     const v = q.versionBlueprint.get(listingId, row.version);
     if (!v) return { status: 500, body: { error: "快照缺失" } };
-    const norm = store.normalize(JSON.parse(v.blueprint));
+    // 同上：安装＝把市场快照原样装到自己名下，内容没有任何改动 ⇒ 棘轮持平档。
+    // 走严格档的话，已上架的存量应用会变成"别人装不了"，而且报 500。
+    const snapRaw = JSON.parse(v.blueprint);
+    const norm = store.normalize(snapRaw, { prev: snapRaw });
     if (!norm.ok) return { status: 500, body: { error: "快照不合法" } };
     const content = norm.blueprint ?? norm.card;
 
     const newId = randomUUID();
-    store.insertFromMarket(newId, uid, row.name, row.icon, JSON.stringify(content), row.created_by, now, listingId, row.version);
+    /*
+     * 🔴 09-15 夜（苏白在 OCTO 群）：「中际旭创这个组织里边，还没区分」——
+     *   病根就在这一行：装下来的那一份**不带分区**，所以谁从市场装一个设备 OS，
+     *   它就掉进"没分区"那一档，界面上当然分不出栏。分区跟 name/icon 一样是
+     *   作者摆的样子，装的人应该原样拿到（他之后想改自己改）。
+     */
+    store.insertFromMarket(newId, uid, row.name, row.icon, JSON.stringify(content), row.created_by, now, listingId, row.version, spaceId, row.section);
     q.insertInstall.run(listingId, uid, newId, row.version, now);
     console.log(`[yoyoo-market] install kind=${kind} listing=${listingId} uid=${uid} content=${newId}`);
     return { status: 201, body: { app_id: newId, version: row.version, installs: q.installCount.get(listingId).n } };
@@ -426,7 +516,7 @@ export function createMarket({ db, spaceId }) {
    * 用户面目前只暴露应用市场（kind 固定 'app'）——卡片市场的界面还没做，
    * 接口已经通用，等前端做的时候不需要再改后端。
    */
-  async function handle(req, res, { path, url, uid, now, root }) {
+  async function handle(req, res, { path, url, uid, now, root, token, spaceId: ctxSpaceId = "" }) {
     const rel = path.slice(root.length); // 形如 /market/listings/xxx
 
     // ── 侧栏钉位 ────────────────────────────────────────────────
@@ -447,11 +537,15 @@ export function createMarket({ db, spaceId }) {
         if (uniq.length > PIN_LIMIT) {
           return send(res, 400, { error: `侧栏最多钉 ${PIN_LIMIT} 个`, limit: PIN_LIMIT }), true;
         }
-        // 只能钉自己名下的应用 —— 否则可以拿别人的 app_id 钉出一个打不开的图标
+        // 只能钉**你打得开的**应用 —— 否则可以拿别人的 app_id 钉出一个打不开的图标。
+        // 🔴 09-04 修正判据：原来写的是"只能钉自己名下的"。在只有"自己的应用"
+        //    这一种可打开的东西时，两者等价；有了"分享到群"之后就不等价了——
+        //    同事能打开的工作台反而钉不住，而钉住它正是她每天要用它的方式。
+        //    要防的一直是"钉出一个打不开的图标"，那判据就该直接问"打不打得开"。
         for (const id of uniq) {
-          if (!q.appOwned.get(id, uid)) {
-            return send(res, 404, { error: "not found" }), true;
-          }
+          if (q.appOwned.get(id, uid, ctxSpaceId)) continue;
+          const openable = canOpenApp ? await canOpenApp({ appId: id, uid, token, spaceId: ctxSpaceId }) : false;
+          if (!openable) return send(res, 404, { error: "not found" }), true;
         }
         q.pinsClear.run(uid);
         uniq.forEach((id, i) => q.pinsAdd.run(uid, id, i));
@@ -467,7 +561,7 @@ export function createMarket({ db, spaceId }) {
         const mine = url.searchParams.get("mine") === "1";
         const r = doBrowse("app", uid, {
           q: url.searchParams.get("q"), page: url.searchParams.get("page"), hot, mine,
-        });
+        }, ctxSpaceId);
         return send(res, r.status, r.body), true;
       }
       if (req.method === "POST") {
@@ -480,7 +574,7 @@ export function createMarket({ db, spaceId }) {
         const r = doPublishNew("app", uid, {
           appId: body.app_id, summary: body.summary, note: body.note,
           confirmSensitive: body.confirm_sensitive === true,
-        }, now);
+        }, now, ctxSpaceId);
         return send(res, r.status, r.body), true;
       }
       return send(res, 405, { error: "method not allowed" }), true;
@@ -502,14 +596,14 @@ export function createMarket({ db, spaceId }) {
         }
         const r = doPublishVersion("app", uid, {
           listingId, note: body.note, confirmSensitive: body.confirm_sensitive === true,
-        }, now);
+        }, now, ctxSpaceId);
         return send(res, r.status, r.body), true;
       }
 
       // 安装
       if (action === "install") {
         if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
-        const r = doInstall("app", uid, listingId, now);
+        const r = doInstall("app", uid, listingId, now, ctxSpaceId);
         return send(res, r.status, r.body), true;
       }
 
@@ -517,7 +611,7 @@ export function createMarket({ db, spaceId }) {
 
       // 详情 / 下架
       if (req.method === "GET") {
-        const row = visibleListing(listingId, { allowDelisted: false });
+        const row = visibleListing(listingId, ctxSpaceId, { allowDelisted: false });
         if (!row) return send(res, 404, { error: "not found" }), true;
         const mine = q.myInstall.get(listingId, uid);
         return send(res, 200, {
@@ -540,12 +634,8 @@ export function createMarket({ db, spaceId }) {
         }), true;
       }
       if (req.method === "DELETE") {
-        const row = visibleListing(listingId);
-        if (!row) return send(res, 404, { error: "not found" }), true;
-        if (row.author_uid !== uid) return send(res, 403, { error: "只有作者能下架" }), true;
-        // 下架不删数据：已装的人是副本，不受影响（§5.6）
-        q.delist.run(now, listingId);
-        return send(res, 200, { ok: true, status: "delisted" }), true;
+        const r = doDelist("app", uid, listingId, now, ctxSpaceId);  // 这条路由是应用面的（卡片没有市场页）
+        return send(res, r.status, r.body), true;
       }
       return send(res, 405, { error: "method not allowed" }), true;
     }
@@ -557,8 +647,8 @@ export function createMarket({ db, spaceId }) {
    * `/apps/:id/sync` 与 `/apps/:id/revert` —— 挂在 apps 命名空间下，
    * 由 index.mjs 在解析出 id 之后转进来。
    */
-  async function handleAppAction(req, res, { appId, action, uid, now }) {
-    const app = q.appGet.get(appId, uid);
+  async function handleAppAction(req, res, { appId, action, uid, now, spaceId = "" }) {
+    const app = q.appGet.get(appId, uid, spaceId);
     if (!app) return send(res, 404, { error: "not found" }), true;
 
     if (action === "sync") {
@@ -566,7 +656,7 @@ export function createMarket({ db, spaceId }) {
       if (!app.source_listing_id) {
         return send(res, 400, { error: "这个应用不是从市场装的，没有来源可更新" }), true;
       }
-      const row = visibleListing(app.source_listing_id);
+      const row = visibleListing(app.source_listing_id, spaceId);
       if (!row) return send(res, 404, { error: "来源已下架或不存在" }), true;
       if (row.version <= (app.source_version ?? 0)) {
         return send(res, 200, { ok: true, updated: false, version: app.source_version }), true;
@@ -578,7 +668,7 @@ export function createMarket({ db, spaceId }) {
 
       // 先备份再覆盖 —— "一键回退"的前提（§2.3）
       q.backupPut.run(appId, app.blueprint, app.source_version ?? null, now);
-      q.appSetBlueprint.run(JSON.stringify(norm.blueprint), row.version, now, appId, uid);
+      q.appSetBlueprint.run(JSON.stringify(norm.blueprint), row.version, now, appId, uid, spaceId);
       q.setInstallVersion.run(row.version, row.id, uid);
       return send(res, 200, { ok: true, updated: true, version: row.version }), true;
     }
@@ -587,7 +677,7 @@ export function createMarket({ db, spaceId }) {
       if (req.method !== "POST") return send(res, 405, { error: "method not allowed" }), true;
       const b = q.backupGet.get(appId);
       if (!b) return send(res, 404, { error: "没有可回退的备份" }), true;
-      q.appSetBlueprint.run(b.blueprint, b.from_version ?? null, now, appId, uid);
+      q.appSetBlueprint.run(b.blueprint, b.from_version ?? null, now, appId, uid, spaceId);
       if (app.source_listing_id) {
         q.setInstallVersion.run(b.from_version ?? 0, app.source_listing_id, uid);
       }
@@ -608,10 +698,20 @@ export function createMarket({ db, spaceId }) {
    */
   const installsDelByApp = db.prepare(`DELETE FROM installs WHERE uid = ? AND app_id = ?`);
   const pinsDelByApp = db.prepare(`DELETE FROM pins WHERE uid = ? AND app_id = ?`);
+  const listedByApp = db.prepare(
+    `SELECT id FROM listings WHERE app_id = ? AND author_uid = ? AND status = 'listed'`);
+
   function onAppDeleted(uid, appId) {
     installsDelByApp.run(uid, appId);
     pinsDelByApp.run(uid, appId);
     q.backupDel.run(appId);
+    /*
+     * 🔴 09-15 夜真踩到的：作者把应用删了，它在市场里的卡片**还挂着** ——
+     *   我建错作者的那条删掉之后，市场里留下一张谁都撤不掉的孤儿卡片
+     *   （同名两张，看的人只会以为发重了）。
+     *   删应用 ⇒ 顺带下架，不删数据：已经装走的人是副本，不受影响（§5.6）。
+     */
+    for (const row of listedByApp.all(appId, uid)) q.delist.run(Date.now(), row.id);
   }
 
   /** 给 GET /apps 列表用：算出每条应用"有没有更新" */
@@ -642,6 +742,6 @@ export function createMarket({ db, spaceId }) {
     handle, handleAppAction, decorateAppList, onAppDeleted, PIN_LIMIT,
     // bot 面（index.mjs 的 /apps/for、/cards/for 系列）直接调这几个，绕开 HTTP 解析，
     // 但走的是同一份判据——不是给 bot 面另开一条后门逻辑。
-    doBrowse, doPublishNew, doPublishVersion, doInstall,
+    doBrowse, doPublishNew, doPublishVersion, doInstall, doDelist,
   };
 }
